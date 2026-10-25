@@ -1782,7 +1782,7 @@ function GovSidebar({ active, onSelect, collapsed, onExit }) {
       </div>
       <nav className="nav-section">
         {NAV_ITEMS.map(item => (
-          <div key={item.id} className={`nav-item${active===item.id?' active':''}`} onClick={() => onSelect(item.id)} title={collapsed || ['proposals','evaluation','pilot'].includes(active) ? item.label : undefined}>
+          <div key={item.id} className={`nav-item${active===item.id?' active':''}`} onClick={() => onSelect(item.id)} title={collapsed || ['proposals','evaluation','pilot','performance'].includes(active) ? item.label : undefined}>
             <Icon name={item.icon} size={16} color={active===item.id ? '#0F9D8A' : 'rgba(255,255,255,0.65)'} />
             <span className="nav-label">{item.label}</span>
           </div>
@@ -3157,6 +3157,138 @@ function PilotTrackingPage({ pilots, setPilots, challenges, startups, onOpenChal
   );
 }
 
+function PerformanceDetailsModal({ challenge, proposals, evaluations, pilots, startups, onClose, onOpenChallenge }) {
+  useEffect(() => {
+    const onKey = event => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const challengeProposals = proposals.filter(proposal => proposal.challengeId === challenge.id);
+  const challengePilots = pilots.filter(pilot => pilot.challengeId === challenge.id);
+  const proposalIds = new Set(challengeProposals.map(proposal => proposal.id));
+  const challengeEvaluations = evaluations.filter(evaluation => proposalIds.has(evaluation.proposalId));
+  const challengeStartups = [...new Set(challengeProposals.map(proposal => proposal.startupId))].map(id => startups.find(startup => startup.id === id)).filter(Boolean);
+  const completedEvaluations = challengeEvaluations.filter(evaluation => evaluation.status === 'Completed').length;
+  const acceptedProposals = challengeProposals.filter(proposal => proposal.status === 'Accepted').length;
+  const progress = challengePilots.length ? Math.round(challengePilots.reduce((total, pilot) => total + pilot.progress, 0) / challengePilots.length) : null;
+
+  return (
+    <div className="modal-overlay pf-modal" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="performance-detail-title">
+        <div className="modal-header"><span className="modal-title">Challenge performance</span><button className="icon-btn" onClick={onClose} aria-label="Close performance details"><Icon name="X" size={16} /></button></div>
+        <div className="modal-body">
+          <div className="perf-detail-heading"><div><h2 id="performance-detail-title">{challenge.title}</h2><span>{challenge.category} · deadline {formatProposalDate(challenge.deadline)}</span></div><span className={`badge ${challengeStatusBadge(challenge.status)}`}>{challenge.status}</span></div>
+          <div className="perf-detail-metrics"><div><span>Applications</span><strong>{challenge.applications}</strong></div><div><span>Participating startups</span><strong>{challengeStartups.length}</strong></div><div><span>Proposals</span><strong>{challengeProposals.length}</strong></div><div><span>Evaluation completion</span><strong>{challengeEvaluations.length ? `${Math.round(completedEvaluations / challengeEvaluations.length * 100)}%` : '—'}</strong></div></div>
+          <section className="perf-detail-section"><h3>Challenge brief</h3><p>{challenge.description}</p></section>
+          <section className="perf-detail-section"><h3>Pilot progress</h3>{challengePilots.length ? challengePilots.map(pilot => <div className="perf-pilot-detail" key={pilot.id}><div><strong>{pilot.name}</strong><span>{pilot.status} · {pilot.progress}%</span></div><div className="perf-bar-track"><span style={{ width:`${pilot.progress}%` }} /></div><div className="perf-pilot-dates">{formatProposalDate(pilot.startDate)} – {formatProposalDate(pilot.endDate)}</div>{pilot.milestones.map(milestone => <div className="perf-milestone-row" key={milestone.id}><span>{milestone.title}</span><span className={`badge ${pilotStatusBadge(milestone.status)}`}>{milestone.status}</span></div>)}</div>) : <p>No pilots are linked to this challenge yet.</p>}</section>
+          <section className="perf-detail-section"><h3>Proposed outcomes <span>(unverified)</span></h3>{challengeProposals.length ? challengeProposals.map(proposal => <div className="perf-outcome" key={proposal.id}><strong>{startups.find(startup => startup.id === proposal.startupId)?.name || 'Startup proposal'}</strong><p>{proposal.expectedOutcomes}</p></div>) : <p>No proposal outcomes have been submitted.</p>}</section>
+          <p className="perf-demo-note">All figures are calculated from frontend mock records. Proposed outcomes are not measured results.</p>
+        </div>
+        <div className="modal-footer"><button className="btn-secondary" onClick={onClose}>Close</button><button className="btn-primary" onClick={() => onOpenChallenge(challenge.id)}><Icon name="FileText" size={14} color="#fff" /> View Challenge</button></div>
+      </div>
+    </div>
+  );
+}
+
+function PerformancePage({ challenges, matches, proposals, evaluations, pilots, onOpenChallenge }) {
+  const [search, setSearch] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [selectedChallenge, setSelectedChallenge] = useState(null);
+
+  const proposalsFor = challengeId => proposals.filter(proposal => proposal.challengeId === challengeId);
+  const pilotsFor = challengeId => pilots.filter(pilot => pilot.challengeId === challengeId);
+  const departmentsFor = challengeId => [...new Set(pilotsFor(challengeId).map(pilot => pilot.department))];
+  const progressFor = challengeId => {
+    const challengePilots = pilotsFor(challengeId);
+    return challengePilots.length ? Math.round(challengePilots.reduce((total, pilot) => total + pilot.progress, 0) / challengePilots.length) : null;
+  };
+  const pilotStatusFor = challengeId => {
+    const challengePilots = pilotsFor(challengeId);
+    if (!challengePilots.length) return 'No Pilot';
+    if (challengePilots.some(pilot => pilot.status === 'Delayed')) return 'Delayed';
+    if (challengePilots.some(pilot => pilot.status === 'In Progress')) return 'In Progress';
+    if (challengePilots.some(pilot => pilot.status === 'Planned')) return 'Planned';
+    return 'Completed';
+  };
+  const rowData = challenges.map(challenge => {
+    const challengeProposals = proposalsFor(challenge.id);
+    const startupIds = [...new Set(challengeProposals.map(proposal => proposal.startupId))];
+    return { challenge, proposalCount:challengeProposals.length, startupCount:startupIds.length, departments:departmentsFor(challenge.id), pilotStatus:pilotStatusFor(challenge.id), progress:progressFor(challenge.id) };
+  });
+  const departments = [...new Set(rowData.flatMap(row => row.departments))].sort();
+  const term = search.trim().toLowerCase();
+  const filtered = rowData.filter(({ challenge, departments:challengeDepartments }) => {
+    const challengeProposals = proposalsFor(challenge.id);
+    const proposalStartupNames = challengeProposals.map(proposal => matches.find(startup => startup.id === proposal.startupId)?.name || '');
+    const matchStartupNames = matches.filter(startup => startup.challengeId === challenge.id).map(startup => startup.name);
+    const searchableText = `${challenge.title} ${proposalStartupNames.join(' ')} ${matchStartupNames.join(' ')}`.toLowerCase();
+    return (!term || searchableText.includes(term))
+      && (statusFilter === 'All' || challenge.status === statusFilter)
+      && (departmentFilter === 'All' ? true : challengeDepartments.includes(departmentFilter))
+      && (!dateFrom || challenge.deadline >= dateFrom)
+      && (!dateTo || challenge.deadline <= dateTo);
+  });
+
+  const activePilots = pilots.filter(pilot => ['In Progress','Delayed'].includes(pilot.status)).length;
+  const completedPilots = pilots.filter(pilot => pilot.status === 'Completed').length;
+  const overallProgress = pilots.length ? Math.round(pilots.reduce((total, pilot) => total + pilot.progress, 0) / pilots.length) : 0;
+  const proposerIds = new Set(proposals.map(proposal => proposal.startupId));
+  const metrics = [
+    { label:'Startup participation', value:`${proposerIds.size}/${matches.length}`, percent:matches.length ? Math.round(proposerIds.size / matches.length * 100) : 0, formula:'Unique proposal submitters ÷ matched startups' },
+    { label:'Proposal acceptance', value:`${proposals.length ? Math.round(proposals.filter(proposal => proposal.status === 'Accepted').length / proposals.length * 100) : 0}%`, percent:proposals.length ? Math.round(proposals.filter(proposal => proposal.status === 'Accepted').length / proposals.length * 100) : 0, formula:'Accepted proposals ÷ all proposals' },
+    { label:'Evaluation completion', value:`${evaluations.length ? Math.round(evaluations.filter(evaluation => evaluation.status === 'Completed').length / evaluations.length * 100) : 0}%`, percent:evaluations.length ? Math.round(evaluations.filter(evaluation => evaluation.status === 'Completed').length / evaluations.length * 100) : 0, formula:'Completed evaluations ÷ all evaluations' },
+    { label:'Pilot success', value:`${pilots.length ? Math.round(completedPilots / pilots.length * 100) : 0}%`, percent:pilots.length ? Math.round(completedPilots / pilots.length * 100) : 0, formula:'Completed pilots ÷ all pilots; completion is a workflow proxy, not verified impact' },
+  ];
+  const statusCounts = ['Active','Under Review','Completed'].map(status => ({ status, count:challenges.filter(challenge => challenge.status === status).length }));
+  const activityMap = new Map();
+  function addActivity(date, key) {
+    if (!date) return;
+    const month = date.slice(0,7);
+    if (!activityMap.has(month)) activityMap.set(month, { proposals:0, pilots:0 });
+    activityMap.get(month)[key] += 1;
+  }
+  proposals.forEach(proposal => addActivity(proposal.submissionDate, 'proposals'));
+  pilots.forEach(pilot => addActivity(pilot.startDate, 'pilots'));
+  const monthlyActivity = [...activityMap.entries()].sort(([a],[b]) => a.localeCompare(b)).map(([month,activity]) => ({ month, label:new Date(`${month}-01T00:00:00`).toLocaleDateString('en-IN',{month:'short',year:'2-digit'}), ...activity }));
+  const maxActivity = Math.max(1, ...monthlyActivity.map(item => item.proposals + item.pilots));
+  const summaryCards = [
+    { label:'Total Challenges', value:challenges.length, icon:'Layers', bg:'#EBF2FF', color:'#173C70', note:'Current mock challenge records' },
+    { label:'Active Pilots', value:activePilots, icon:'Activity', bg:'#E6F7F5', color:'#0F9D8A', note:'In progress or delayed' },
+    { label:'Completed Pilots', value:completedPilots, icon:'CheckCircle', bg:'#EBF2FF', color:'#173C70', note:'Status marked completed' },
+    { label:'Overall Progress', value:`${overallProgress}%`, icon:'TrendingUp', bg:'#FFF4E5', color:'#b45309', note:'Average progress across pilots' },
+  ];
+
+  function resetFilters() {
+    setSearch(''); setDepartmentFilter('All'); setStatusFilter('All'); setDateFrom(''); setDateTo('');
+  }
+
+  return (
+    <div className="page-content performance-page">
+      <div className="welcome-bar"><div><h1 className="mc-page-title">Performance</h1><p className="mc-page-subtitle">A live summary of challenge activity, proposals, evaluations, and pilot delivery in this demo.</p></div></div>
+      <p className="performance-demo-note"><Icon name="Info" size={14} color="#667085" /> Metrics are derived from current frontend mock records and are not verified real-world outcomes.</p>
+
+      <div className="summary-grid pf-summary-grid">{summaryCards.map(card => <div className="summary-card" key={card.label}><div className="summary-icon" style={{background:card.bg}}><Icon name={card.icon} size={20} color={card.color} /></div><div className="pf-summary-copy"><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div><div className="pf-summary-note">{card.note}</div></div></div>)}</div>
+
+      <section className="pf-metrics-section"><div className="pf-section-heading"><div><h2>Program metrics</h2><p>Each rate is calculated from the current mock records shown below.</p></div></div><div className="pf-metric-grid">{metrics.map(metric => <article className="card pf-metric-card" key={metric.label}><div className="pf-metric-heading"><strong>{metric.label}</strong><span>{metric.value}</span></div><div className="pf-metric-track" role="img" aria-label={`${metric.label}: ${metric.value}`}><span style={{width:`${metric.percent}%`}} /></div><p>{metric.formula}</p></article>)}</div></section>
+
+      <div className="pf-chart-grid">
+        <section className="card pf-chart-card"><div className="pf-card-heading"><div><h2>Challenge status</h2><p>Current challenge records by status.</p></div></div><div className="pf-status-chart">{statusCounts.map(item => <div className="pf-status-item" key={item.status}><div className="pf-status-label"><span>{item.status}</span><strong>{item.count}</strong></div><div className="pf-chart-track"><span className={`pf-status-bar pf-status-${item.status.replace(' ','-').toLowerCase()}`} style={{width:`${challenges.length ? item.count / challenges.length * 100 : 0}%`}} /></div></div>)}</div></section>
+        <section className="card pf-chart-card"><div className="pf-card-heading"><div><h2>Monthly activity</h2><p>Proposal submissions and pilot starts by recorded month.</p></div></div>{monthlyActivity.length ? <div className="pf-month-chart">{monthlyActivity.map(item => <div className="pf-month-row" key={item.month}><span className="pf-month-label">{item.label}</span><div className="pf-month-bars"><span className="pf-month-proposals" style={{width:`${item.proposals / maxActivity * 100}%`}} title={`${item.proposals} proposal submissions`} /><span className="pf-month-pilots" style={{width:`${item.pilots / maxActivity * 100}%`}} title={`${item.pilots} pilot starts`} /></div><span className="pf-month-count">{item.proposals + item.pilots}</span></div>)}<div className="pf-chart-legend"><span><i className="pf-month-proposals" />Proposal submissions</span><span><i className="pf-month-pilots" />Pilot starts</span></div></div> : <p className="pf-chart-empty">No dated activity is available.</p>}</section>
+      </div>
+
+      <section className="card pf-performance-list"><div className="card-header pf-list-header"><div><div className="card-title">Challenge performance</div><div className="mc-result-count">Showing {filtered.length} of {challenges.length} challenges</div></div><div className="pf-toolbar"><div className="search-wrap pf-search"><span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span><input type="search" aria-label="Search challenge or startup" placeholder="Search challenge or startup…" value={search} onChange={event => setSearch(event.target.value)} /></div><select className="form-select pf-filter" aria-label="Filter challenges by department" value={departmentFilter} onChange={event => setDepartmentFilter(event.target.value)}><option value="All">All departments</option>{departments.map(department => <option key={department}>{department}</option>)}</select><select className="form-select pf-filter" aria-label="Filter challenges by status" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="All">All statuses</option>{['Active','Under Review','Completed'].map(status => <option key={status}>{status}</option>)}</select><label className="pf-date-filter"><span>Deadline</span><input type="date" aria-label="Filter deadlines from" value={dateFrom} onChange={event => setDateFrom(event.target.value)} /><span>to</span><input type="date" aria-label="Filter deadlines through" value={dateTo} onChange={event => setDateTo(event.target.value)} /></label></div></div>
+        {filtered.length ? <div className="table-wrap pf-table-wrap"><table className="pf-table"><thead><tr>{['Challenge','Department','Participating startups','Proposals','Pilot status','Progress','Action'].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{filtered.map(({challenge,proposalCount,startupCount,departments:challengeDepartments,pilotStatus,progress})=><tr key={challenge.id}><td className="pf-challenge-cell" data-label="Challenge">{challenge.title}</td><td data-label="Department">{challengeDepartments.join(', ') || 'No pilot assigned'}</td><td data-label="Participating startups">{startupCount}</td><td data-label="Proposals">{proposalCount}</td><td data-label="Pilot status"><span className={`badge ${pilotStatus === 'No Pilot' ? 'badge-blue' : pilotStatus === 'Delayed' ? 'pt-status-delayed' : pilotStatus === 'Completed' ? 'badge-teal' : pilotStatus === 'In Progress' ? 'badge-blue' : 'badge-amber'}`}>{pilotStatus}</span></td><td className="pf-progress-cell" data-label="Progress">{progress === null ? <span>—</span> : <><div className="pf-table-track"><span style={{width:`${progress}%`}} /></div><strong>{progress}%</strong></>}</td><td className="pf-action-cell" data-label="Action"><button className="btn-secondary pf-detail-button" onClick={() => setSelectedChallenge(challenge)}><Icon name="BarChart2" size={14} /> Details</button></td></tr>)}</tbody></table></div> : <div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="SearchX" size={22} color="#173C70" /></div><h2>No challenges match these filters</h2><p>Try another department, status, date range, or search term.</p><button className="btn-secondary" onClick={resetFilters}>Clear filters</button></div>}
+      </section>
+
+      {selectedChallenge && <PerformanceDetailsModal challenge={selectedChallenge} proposals={proposals} evaluations={evaluations} pilots={pilots} startups={matches} onClose={() => setSelectedChallenge(null)} onOpenChallenge={onOpenChallenge} />}
+    </div>
+  );
+}
+
 function PostChallengePage({ onCreate, onCancel, onViewChallenges }) {
   const [form, setForm] = useState({
     title:'', description:'', department:'', category:'', technologies:'',
@@ -3361,7 +3493,7 @@ function GovDashboard({ setPage }) {
   }
 
   return (
-    <div className={`app-shell${activeNav === 'proposals' ? ' proposals-shell' : activeNav === 'evaluation' ? ' evaluation-shell' : activeNav === 'pilot' ? ' pilot-shell' : ''}`}>
+    <div className={`app-shell${activeNav === 'proposals' ? ' proposals-shell' : activeNav === 'evaluation' ? ' evaluation-shell' : activeNav === 'pilot' ? ' pilot-shell' : activeNav === 'performance' ? ' performance-shell' : ''}`}>
       <GovSidebar active={activeNav} onSelect={id => { if (id === 'challenges') setChallengeSearchSeed(''); setActiveNav(id); }} collapsed={sidebarCollapsed} onExit={() => setPage('home')} />
       <div className="main-area">
         <GovHeader onToggleSidebar={() => setSidebarCollapsed(c => !c)} />
@@ -3377,6 +3509,8 @@ function GovDashboard({ setPage }) {
                 ? <EvaluationPage proposals={govProposals} evaluations={govEvaluations} setEvaluations={setGovEvaluations} startups={govMatches} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} />
               : activeNav === 'pilot'
                 ? <PilotTrackingPage pilots={govPilots} setPilots={setGovPilots} challenges={govChallenges} startups={govMatches} onOpenChallenge={openRelatedChallenge} />
+              : activeNav === 'performance'
+                ? <PerformancePage challenges={govChallenges} matches={govMatches} proposals={govProposals} evaluations={govEvaluations} pilots={govPilots} onOpenChallenge={openRelatedChallenge} />
             : activeNav === 'post'
               ? <PostChallengePage
                   onCreate={challenge => setGovChallenges(previous => [{ ...challenge, id:Date.now() }, ...previous])}
