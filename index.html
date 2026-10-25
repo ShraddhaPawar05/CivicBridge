@@ -1782,7 +1782,7 @@ function GovSidebar({ active, onSelect, collapsed, onExit }) {
       </div>
       <nav className="nav-section">
         {NAV_ITEMS.map(item => (
-          <div key={item.id} className={`nav-item${active===item.id?' active':''}`} onClick={() => onSelect(item.id)} title={collapsed || active === 'proposals' || active === 'evaluation' ? item.label : undefined}>
+          <div key={item.id} className={`nav-item${active===item.id?' active':''}`} onClick={() => onSelect(item.id)} title={collapsed || ['proposals','evaluation','pilot'].includes(active) ? item.label : undefined}>
             <Icon name={item.icon} size={16} color={active===item.id ? '#0F9D8A' : 'rgba(255,255,255,0.65)'} />
             <span className="nav-label">{item.label}</span>
           </div>
@@ -2158,6 +2158,15 @@ const INITIAL_GOV_EVALUATIONS = [
   { proposalId:704, status:'Flagged', scores:{ innovation:4, feasibility:3, impact:4, budget:3, readiness:3 }, comments:'Please verify the proposed document retention policy and integration responsibilities.', recommendation:'Request Revisions' },
   { proposalId:705, status:'Completed', scores:{ innovation:3, feasibility:4, impact:3, budget:4, readiness:4 }, comments:'The edge-processing approach is promising; privacy safeguards need to be explicit in the pilot protocol.', recommendation:'Request Revisions' },
   { proposalId:706, status:'Pending', scores:{}, comments:'', recommendation:'' },
+];
+
+const INITIAL_GOV_PILOTS = [
+  { id:901, name:'Ward Waste Route Pilot', challengeId:101, startupId:1, department:'Sanitation Department', startDate:'2026-10-12', endDate:'2027-01-15', status:'In Progress', progress:42, objectives:'Validate route optimization and connected vehicle reporting across three municipal wards.', milestones:[{ id:'baseline', title:'Confirm baseline routes and service levels', dueDate:'2026-10-25', status:'Completed' },{ id:'devices', title:'Install vehicle telemetry devices', dueDate:'2026-11-10', status:'In Progress' },{ id:'pilot', title:'Run the 8-week route pilot', dueDate:'2026-12-20', status:'Planned' },{ id:'review', title:'Review outcomes with department leads', dueDate:'2027-01-15', status:'Planned' }], notes:'Baseline route data approved. Field team requested an additional vehicle training session.' },
+  { id:902, name:'Junction Signal Coordination', challengeId:103, startupId:2, department:'Transport Department', startDate:'2026-09-20', endDate:'2026-12-15', status:'Delayed', progress:38, objectives:'Coordinate adaptive signal timing across the central transport corridor.', milestones:[{ id:'survey', title:'Complete junction and controller survey', dueDate:'2026-10-01', status:'Completed' },{ id:'integration', title:'Integrate signal controller feeds', dueDate:'2026-10-25', status:'Delayed' },{ id:'testing', title:'Begin live corridor testing', dueDate:'2026-11-20', status:'Planned' }], notes:'Controller access approval is pending; confirm the revised integration date at the next review.' },
+  { id:903, name:'Water Sensor Network Setup', challengeId:102, startupId:4, department:'Water Authority', startDate:'2026-11-02', endDate:'2027-02-28', status:'Planned', progress:0, objectives:'Prepare continuous water-quality monitoring at priority storage and distribution points.', milestones:[{ id:'site', title:'Approve sensor installation sites', dueDate:'2026-11-12', status:'Planned' },{ id:'install', title:'Install and calibrate sensor nodes', dueDate:'2026-12-20', status:'Planned' },{ id:'monitor', title:'Start monitoring and alert review', dueDate:'2027-01-10', status:'Planned' }], notes:'' },
+  { id:904, name:'Park Safety Proof of Concept', challengeId:104, startupId:6, department:'Parks & Recreation', startDate:'2026-07-01', endDate:'2026-09-30', status:'Completed', progress:100, objectives:'Test privacy-preserving incident detection at selected public park locations.', milestones:[{ id:'privacy', title:'Approve privacy impact controls', dueDate:'2026-07-15', status:'Completed' },{ id:'deploy', title:'Deploy edge devices at pilot sites', dueDate:'2026-08-01', status:'Completed' },{ id:'report', title:'Submit final pilot report', dueDate:'2026-09-30', status:'Completed' }], notes:'Pilot closed. Final report accepted and all temporary edge devices were removed.' },
+  { id:905, name:'Digital Permit Workflow Pilot', challengeId:105, startupId:5, department:'Urban Planning', startDate:'2026-08-15', endDate:'2026-11-30', status:'Delayed', progress:64, objectives:'Test digital permit intake and case routing with a limited set of building applications.', milestones:[{ id:'mapping', title:'Map current permit intake steps', dueDate:'2026-08-30', status:'Completed' },{ id:'workflow', title:'Configure officer review workflow', dueDate:'2026-09-30', status:'Completed' },{ id:'training', title:'Train permit review officers', dueDate:'2026-10-20', status:'Delayed' },{ id:'launch', title:'Launch applicant pilot cohort', dueDate:'2026-11-30', status:'Planned' }], notes:'Officer training moved due to schedule conflicts; launch remains pending the new training date.' },
+  { id:906, name:'Utility Data Dashboard Trial', challengeId:102, startupId:3, department:'Water Authority', startDate:'2026-10-05', endDate:'2027-01-20', status:'In Progress', progress:26, objectives:'Combine live sensor readings with laboratory results for daily utility operations.', milestones:[{ id:'schema', title:'Map sensor and lab data schemas', dueDate:'2026-10-18', status:'Completed' },{ id:'connector', title:'Build and validate data connector', dueDate:'2026-11-15', status:'In Progress' },{ id:'dashboard', title:'Review dashboard with operations staff', dueDate:'2026-12-15', status:'Planned' }], notes:'Data mapping approved. One laboratory export format still needs a sample file.' },
 ];
 
 function matchStatusBadge(status) {
@@ -2990,6 +2999,164 @@ function EvaluationPage({ proposals, evaluations, setEvaluations, startups, chal
   );
 }
 
+function pilotStatusBadge(status) {
+  if (status === 'Completed') return 'badge-teal';
+  if (status === 'Delayed') return 'pt-status-delayed';
+  if (status === 'In Progress') return 'badge-blue';
+  return 'badge-amber';
+}
+
+function PilotDetailsModal({ pilot, startup, challenge, onClose, onEdit, onOpenChallenge }) {
+  useEffect(() => {
+    const onKey = event => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="modal-overlay pt-modal" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="pt-detail-title">
+        <div className="modal-header"><span className="modal-title">Pilot details</span><button className="icon-btn" onClick={onClose} aria-label="Close pilot details"><Icon name="X" size={16} /></button></div>
+        <div className="modal-body">
+          <div className="pt-detail-heading"><div><h2 id="pt-detail-title">{pilot.name}</h2><span>{pilot.department}</span></div><span className={`badge ${pilotStatusBadge(pilot.status)}`}>{pilot.status}</span></div>
+          <div className="pt-detail-meta"><span>Related challenge</span>{challenge ? <button className="view-link" onClick={() => onOpenChallenge(challenge.id)}>{challenge.title}<Icon name="ArrowUpRight" size={13} /></button> : <strong>Challenge unavailable</strong>}</div>
+          <div className="pt-detail-meta"><span>Startup</span><strong>{startup?.name || 'Startup unavailable'}</strong></div>
+          <section className="pt-detail-section"><h3>Objectives</h3><p>{pilot.objectives}</p></section>
+          <section className="pt-detail-section"><h3>Progress</h3><div className="pt-progress-track"><span style={{ width:`${pilot.progress}%` }} /></div><div className="pt-progress-caption"><strong>{pilot.progress}%</strong><span>{formatProposalDate(pilot.startDate)} – {formatProposalDate(pilot.endDate)}</span></div></section>
+          <section className="pt-detail-section"><h3>Milestones and timeline</h3><div className="pt-milestones">{pilot.milestones.map((milestone,index) => <div className="pt-milestone" key={milestone.id}><div className={`pt-milestone-marker${milestone.status === 'Completed' ? ' is-complete' : milestone.status === 'Delayed' ? ' is-delayed' : ''}`}>{milestone.status === 'Completed' ? <Icon name="Check" size={11} color="#fff" /> : index + 1}</div><div className="pt-milestone-copy"><strong>{milestone.title}</strong><span>{formatProposalDate(milestone.dueDate)} · {milestone.status}</span></div></div>)}</div></section>
+          <section className="pt-detail-section"><h3>Notes</h3><p>{pilot.notes || 'No notes recorded yet.'}</p></section>
+        </div>
+        <div className="modal-footer"><button className="btn-secondary" onClick={onClose}>Close</button><button className="btn-primary" onClick={() => onEdit(pilot)}><Icon name="Pencil" size={14} color="#fff" /> Update Pilot</button></div>
+      </div>
+    </div>
+  );
+}
+
+function PilotEditorModal({ pilot, onClose, onSave }) {
+  const [progress, setProgress] = useState(String(pilot.progress));
+  const [status, setStatus] = useState(pilot.status);
+  const [milestones, setMilestones] = useState(() => pilot.milestones.map(milestone => ({ ...milestone })));
+  const [notes, setNotes] = useState(pilot.notes || '');
+  const [errors, setErrors] = useState({});
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    const onKey = event => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  function updates() {
+    return { progress:Number(progress), status, milestones, notes:notes.trim() };
+  }
+
+  function save(event) {
+    event.preventDefault();
+    const nextErrors = {};
+    const progressValue = Number(progress);
+    if (progress === '' || !Number.isInteger(progressValue) || progressValue < 0 || progressValue > 100) nextErrors.progress = 'Enter a whole-number progress value from 0 to 100.';
+    if (notes.trim() && notes.trim().length < 10) nextErrors.notes = 'Add at least 10 characters or leave notes blank.';
+    if (status === 'Completed') {
+      if (progressValue !== 100) nextErrors.completion = 'Set progress to 100% before completing the pilot.';
+      if (milestones.some(milestone => milestone.status !== 'Completed')) nextErrors.completion = 'Mark every milestone complete before completing the pilot.';
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+    if (status === 'Completed' && pilot.status !== 'Completed') {
+      setConfirming(true);
+      return;
+    }
+    onSave(pilot.id, updates(), false);
+  }
+
+  return (
+    <div className="modal-overlay pt-modal" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="pt-editor-title">
+        {confirming ? (
+          <>
+            <div className="modal-header"><span className="modal-title" id="pt-editor-title">Confirm pilot completion</span><button className="icon-btn" onClick={onClose} aria-label="Close completion confirmation"><Icon name="X" size={16} /></button></div>
+            <div className="modal-body"><p className="pt-confirm-text">Mark <strong>{pilot.name}</strong> as completed? This will update the pilot status in the current demo session.</p></div>
+            <div className="modal-footer"><button className="btn-secondary" onClick={() => setConfirming(false)}>Back to Update</button><button className="btn-primary" onClick={() => onSave(pilot.id, updates(), true)}><Icon name="Check" size={14} color="#fff" /> Confirm Completion</button></div>
+          </>
+        ) : (
+          <form onSubmit={save} noValidate>
+            <div className="modal-header"><div><span className="modal-title" id="pt-editor-title">Update Pilot</span><span className="pt-editor-subtitle">{pilot.name}</span></div><button type="button" className="icon-btn" onClick={onClose} aria-label="Close pilot update"><Icon name="X" size={16} /></button></div>
+            <div className="modal-body">
+              <div className="pt-editor-grid">
+                <div className="form-group"><label className="form-label" htmlFor="pt-progress">Progress (%)</label><input id="pt-progress" className={`form-input${errors.progress ? ' mc-input-error' : ''}`} type="number" min="0" max="100" step="1" value={progress} onChange={event => { setProgress(event.target.value); setErrors(previous => ({ ...previous, progress:'', completion:'' })); }} aria-invalid={!!errors.progress} />{errors.progress && <span className="mc-field-error" role="alert">{errors.progress}</span>}</div>
+                <div className="form-group"><label className="form-label" htmlFor="pt-status">Pilot status</label><select id="pt-status" className="form-select" value={status} onChange={event => { setStatus(event.target.value); setErrors(previous => ({ ...previous, completion:'' })); }}><option>Planned</option><option>In Progress</option><option>Delayed</option><option>Completed</option></select></div>
+              </div>
+              {errors.completion && <div className="mc-field-error pt-completion-error" role="alert">{errors.completion}</div>}
+              <div className="pt-editor-section"><h3>Milestones</h3>{milestones.map(milestone => <div className="pt-edit-milestone" key={milestone.id}><div><strong>{milestone.title}</strong><span>Due {formatProposalDate(milestone.dueDate)}</span></div><select className="form-select" aria-label={`Milestone status: ${milestone.title}`} value={milestone.status} onChange={event => setMilestones(previous => previous.map(item => item.id === milestone.id ? { ...item, status:event.target.value } : item))}><option>Planned</option><option>In Progress</option><option>Completed</option><option>Delayed</option></select></div>)}</div>
+              <div className="form-group pt-notes-group"><label className="form-label" htmlFor="pt-notes">Pilot notes</label><textarea id="pt-notes" className={`form-textarea${errors.notes ? ' mc-input-error' : ''}`} maxLength={600} value={notes} onChange={event => { setNotes(event.target.value); setErrors(previous => ({ ...previous, notes:'' })); }} placeholder="Add a progress update or note for the department…" />{errors.notes && <span className="mc-field-error" role="alert">{errors.notes}</span>}<span className="pt-notes-count">{notes.length}/600</span></div>
+              <p className="sm-demo-note">Updates remain in the current frontend session only.</p>
+            </div>
+            <div className="modal-footer"><button type="button" className="btn-secondary" onClick={onClose}>Cancel</button><button type="submit" className="btn-primary"><Icon name="Save" size={14} color="#fff" /> Save Updates</button></div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PilotTrackingPage({ pilots, setPilots, challenges, startups, onOpenChallenge }) {
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [departmentFilter, setDepartmentFilter] = useState('All');
+  const [endByDate, setEndByDate] = useState('');
+  const [dialog, setDialog] = useState(null);
+  const [notice, setNotice] = useState('');
+  const challengeById = id => challenges.find(challenge => challenge.id === id);
+  const startupById = id => startups.find(startup => startup.id === id);
+  const departments = [...new Set(pilots.map(pilot => pilot.department))].sort();
+  const filtered = pilots.filter(pilot => {
+    const challenge = challengeById(pilot.challengeId);
+    const startup = startupById(pilot.startupId);
+    const term = search.trim().toLowerCase();
+    const searchText = `${pilot.name} ${challenge?.title || ''} ${startup?.name || ''}`.toLowerCase();
+    return (!term || searchText.includes(term))
+      && (statusFilter === 'All' || pilot.status === statusFilter)
+      && (departmentFilter === 'All' || pilot.department === departmentFilter)
+      && (!endByDate || pilot.endDate <= endByDate);
+  });
+  const summaries = [
+    { label:'Total Pilots', value:pilots.length, icon:'Rocket', bg:'#EBF2FF', color:'#173C70' },
+    { label:'Planned', value:pilots.filter(pilot => pilot.status === 'Planned').length, icon:'CalendarDays', bg:'#FFF4E5', color:'#b45309' },
+    { label:'In Progress', value:pilots.filter(pilot => pilot.status === 'In Progress').length, icon:'Activity', bg:'#E6F7F5', color:'#0F9D8A' },
+    { label:'Completed', value:pilots.filter(pilot => pilot.status === 'Completed').length, icon:'CheckCircle', bg:'#EBF2FF', color:'#173C70' },
+    { label:'Delayed', value:pilots.filter(pilot => pilot.status === 'Delayed').length, icon:'AlertTriangle', bg:'#FEE4E2', color:'#b42318' },
+  ];
+
+  function savePilot(pilotId, update, completed) {
+    const pilot = pilots.find(item => item.id === pilotId);
+    setPilots(previous => previous.map(item => item.id === pilotId ? { ...item, ...update } : item));
+    setNotice(completed ? `${pilot?.name || 'Pilot'} marked completed.` : `Updates saved for ${pilot?.name || 'pilot'}.`);
+    setDialog(null);
+  }
+
+  function resetFilters() {
+    setSearch('');
+    setStatusFilter('All');
+    setDepartmentFilter('All');
+    setEndByDate('');
+  }
+
+  return (
+    <div className="page-content pilot-page">
+      <div className="welcome-bar"><div><h1 className="mc-page-title">Pilot Tracking</h1><p className="mc-page-subtitle">Monitor delivery milestones, timelines, and outcomes across active pilots.</p></div></div>
+      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}<span className="pt-demo-caption">Demo session only.</span></div>}
+
+      <div className="summary-grid pt-summary-grid">{summaries.map(card => <div key={card.label} className="summary-card"><div className="summary-icon" style={{ background:card.bg }}><Icon name={card.icon} size={20} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}</div>
+
+      <section className="card pt-list-card"><div className="card-header pt-list-header"><div><div className="card-title">Government Pilots</div><div className="mc-result-count">Showing {filtered.length} of {pilots.length} pilots</div></div><div className="pt-toolbar"><div className="search-wrap pt-search"><span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span><input type="search" aria-label="Search pilot, challenge, or startup" placeholder="Search challenge or startup…" value={search} onChange={event => setSearch(event.target.value)} /></div><select className="form-select pt-filter" aria-label="Filter pilots by status" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="All">All statuses</option>{['Planned','In Progress','Completed','Delayed'].map(status => <option key={status}>{status}</option>)}</select><select className="form-select pt-filter" aria-label="Filter pilots by department" value={departmentFilter} onChange={event => setDepartmentFilter(event.target.value)}><option value="All">All departments</option>{departments.map(department => <option key={department}>{department}</option>)}</select><label className="pt-date-filter"><span>End by</span><input type="date" aria-label="Filter pilots ending by date" value={endByDate} onChange={event => setEndByDate(event.target.value)} /></label></div></div>
+        {filtered.length ? <div className="table-wrap pt-table-wrap"><table className="pt-table"><thead><tr>{['Pilot','Challenge','Startup','Department','Start date','End date','Progress','Status','Actions'].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{filtered.map(pilot => {const challenge=challengeById(pilot.challengeId);const startup=startupById(pilot.startupId);return <tr key={pilot.id}><td className="pt-name-cell" data-label="Pilot">{pilot.name}</td><td data-label="Challenge">{challenge?.title || 'Challenge unavailable'}</td><td data-label="Startup">{startup?.name || 'Startup unavailable'}</td><td data-label="Department">{pilot.department}</td><td data-label="Start date">{formatProposalDate(pilot.startDate)}</td><td data-label="End date">{formatProposalDate(pilot.endDate)}</td><td className="pt-progress-cell" data-label="Progress"><div className="pt-progress-track"><span style={{ width:`${pilot.progress}%` }} /></div><strong>{pilot.progress}%</strong></td><td data-label="Status"><span className={`badge ${pilotStatusBadge(pilot.status)}`}>{pilot.status}</span></td><td className="pt-actions-cell" data-label="Actions"><div className="pt-row-actions"><button className="btn-secondary pt-action-btn" onClick={() => setDialog({ type:'details', pilot })}><Icon name="Eye" size={14} /> Details</button><button className="btn-primary pt-action-btn" onClick={() => setDialog({ type:'edit', pilot })}><Icon name="Pencil" size={14} color="#fff" /> Update</button></div></td></tr>;})}</tbody></table></div> : <div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="SearchX" size={22} color="#173C70" /></div><h2>No pilots found</h2><p>Try another search, department, status, or end date.</p><button className="btn-secondary" onClick={resetFilters}>Clear filters</button></div>}
+      </section>
+      {dialog?.type === 'details' && <PilotDetailsModal pilot={dialog.pilot} startup={startupById(dialog.pilot.startupId)} challenge={challengeById(dialog.pilot.challengeId)} onClose={() => setDialog(null)} onEdit={pilot => setDialog({ type:'edit', pilot })} onOpenChallenge={id => { setDialog(null); onOpenChallenge(id); }} />}
+      {dialog?.type === 'edit' && <PilotEditorModal key={dialog.pilot.id} pilot={dialog.pilot} onClose={() => setDialog(null)} onSave={savePilot} />}
+    </div>
+  );
+}
+
 function PostChallengePage({ onCreate, onCancel, onViewChallenges }) {
   const [form, setForm] = useState({
     title:'', description:'', department:'', category:'', technologies:'',
@@ -3184,6 +3351,7 @@ function GovDashboard({ setPage }) {
   const [govMatches, setGovMatches]             = useState(INITIAL_GOV_MATCHES);
   const [govProposals, setGovProposals]         = useState(INITIAL_GOV_PROPOSALS);
   const [govEvaluations, setGovEvaluations]     = useState(INITIAL_GOV_EVALUATIONS);
+  const [govPilots, setGovPilots]               = useState(INITIAL_GOV_PILOTS);
   const [challengeSearchSeed, setChallengeSearchSeed] = useState('');
 
   function openRelatedChallenge(challengeId) {
@@ -3193,7 +3361,7 @@ function GovDashboard({ setPage }) {
   }
 
   return (
-    <div className={`app-shell${activeNav === 'proposals' ? ' proposals-shell' : activeNav === 'evaluation' ? ' evaluation-shell' : ''}`}>
+    <div className={`app-shell${activeNav === 'proposals' ? ' proposals-shell' : activeNav === 'evaluation' ? ' evaluation-shell' : activeNav === 'pilot' ? ' pilot-shell' : ''}`}>
       <GovSidebar active={activeNav} onSelect={id => { if (id === 'challenges') setChallengeSearchSeed(''); setActiveNav(id); }} collapsed={sidebarCollapsed} onExit={() => setPage('home')} />
       <div className="main-area">
         <GovHeader onToggleSidebar={() => setSidebarCollapsed(c => !c)} />
@@ -3207,6 +3375,8 @@ function GovDashboard({ setPage }) {
                 ? <ProposalsPage proposals={govProposals} setProposals={setGovProposals} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} />
               : activeNav === 'evaluation'
                 ? <EvaluationPage proposals={govProposals} evaluations={govEvaluations} setEvaluations={setGovEvaluations} startups={govMatches} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} />
+              : activeNav === 'pilot'
+                ? <PilotTrackingPage pilots={govPilots} setPilots={setGovPilots} challenges={govChallenges} startups={govMatches} onOpenChallenge={openRelatedChallenge} />
             : activeNav === 'post'
               ? <PostChallengePage
                   onCreate={challenge => setGovChallenges(previous => [{ ...challenge, id:Date.now() }, ...previous])}
