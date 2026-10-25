@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -28,6 +28,189 @@
 <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
+
+// == DEMO AUTH UTILITIES =====================================================
+// IMPORTANT: This is a browser-only college prototype.
+// Client-side password hashing does NOT provide production security.
+// No account data is sent to any server. Do not enter real passwords,
+// government IDs (Aadhaar, PAN), or any sensitive personal information.
+// Clearing browser data will remove all demo accounts.
+// ============================================================================
+
+const STORAGE_KEY  = 'civicbridge_demo_accounts'; // localStorage key
+const SESSION_KEY  = 'civicbridge_demo_session';  // sessionStorage key
+const PBKDF2_ITERS = 100000;  // work factor -- adequate for demo, not production
+const PBKDF2_HASH  = 'SHA-256';
+const PBKDF2_BITS  = 256;     // 32 bytes derived key length
+
+// Role -> dashboard route key mapping (must match App router exactly)
+const ROLE_DEST = {
+  gov:       'govDashboard',
+  startup:   'startupDashboard',
+  evaluator: 'evaluatorDashboard',
+};
+
+// Returns true only when SubtleCrypto PBKDF2 and getRandomValues are both
+// available. We fail closed -- no weak fallback -- if either is missing.
+function cryptoAvailable() {
+  return !!(
+    window.crypto &&
+    typeof window.crypto.getRandomValues === 'function' &&
+    window.crypto.subtle &&
+    typeof window.crypto.subtle.importKey === 'function' &&
+    typeof window.TextEncoder === 'function'
+  );
+}
+
+// Encode an ArrayBuffer to a lowercase hex string.
+function bufToHex(buf) {
+  return Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+// Decode a hex string back to an ArrayBuffer.
+function hexToBuf(hex) {
+  return new Uint8Array(hex.match(/.{2}/g).map(h => parseInt(h, 16))).buffer;
+}
+
+// Generate a cryptographically random 16-byte (32 hex char) salt.
+// Each account gets its own salt -- never a shared or hardcoded value.
+function randomSalt() {
+  if (!cryptoAvailable()) throw new Error('CRYPTO_UNAVAILABLE');
+  const arr = new Uint8Array(16);
+  window.crypto.getRandomValues(arr);
+  return bufToHex(arr.buffer);
+}
+
+// Derive a PBKDF2 hash from a plaintext password + per-account hex salt.
+// Returns { salt, hash, alg, iters } -- the plaintext password is never stored.
+async function hashPassword(plaintext) {
+  if (!cryptoAvailable()) throw new Error('CRYPTO_UNAVAILABLE');
+  const salt    = randomSalt();
+  const saltBuf = hexToBuf(salt);
+  const keyMat  = await window.crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(plaintext),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+  const derived = await window.crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: saltBuf, iterations: PBKDF2_ITERS, hash: PBKDF2_HASH },
+    keyMat,
+    PBKDF2_BITS
+  );
+  return { salt, hash: bufToHex(derived), alg: 'PBKDF2', iters: PBKDF2_ITERS };
+}
+
+// Verify a plaintext password against a stored { salt, hash, alg, iters } record.
+// Returns true only on an exact match. Throws if crypto is unavailable.
+async function verifyPassword(plaintext, stored) {
+  if (!cryptoAvailable()) throw new Error('CRYPTO_UNAVAILABLE');
+  const keyMat  = await window.crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(plaintext),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+  const derived = await window.crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: hexToBuf(stored.salt), iterations: stored.iters, hash: PBKDF2_HASH },
+    keyMat,
+    PBKDF2_BITS
+  );
+  return bufToHex(derived) === stored.hash;
+}
+
+// Normalize an email address for consistent lookup and duplicate detection.
+function normalizeEmail(email) {
+  return (email || '').trim().toLowerCase();
+}
+
+// Load all demo accounts from localStorage.
+// Returns [] on any error (missing key, malformed JSON, storage unavailable).
+function loadAccounts() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+// Persist the full accounts array to localStorage.
+// Returns true on success, false if storage is unavailable or quota exceeded.
+function saveAccounts(accounts) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+// Find a registered account by normalized email. Returns the account or null.
+function findAccount(email) {
+  const norm = normalizeEmail(email);
+  return loadAccounts().find(a => a.email === norm) || null;
+}
+
+// Append a new account record to localStorage.
+// Returns { ok: true } or { ok: false, error: string }.
+function appendAccount(account) {
+  const accounts = loadAccounts();
+  accounts.push(account);
+  const saved = saveAccounts(accounts);
+  return saved
+    ? { ok: true }
+    : { ok: false, error: 'Browser storage is unavailable or full. Cannot save demo account.' };
+}
+
+// -- Session utilities -------------------------------------------------------
+// The active session stores only { id, email, role, fullName, displayName }.
+// Passwords and password hashes are NEVER written to the session object.
+
+function setSession(sessionObj) {
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessionObj));
+  } catch (_) {
+    // sessionStorage unavailable -- session will not survive page reload
+  }
+}
+
+function getSession() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // Reject any session object that somehow contains a password field
+    if (parsed && (parsed.password || parsed.passwordHash)) return null;
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+}
+
+function clearSession() {
+  try {
+    sessionStorage.removeItem(SESSION_KEY);
+  } catch (_) {
+    // ignore -- storage may already be unavailable
+  }
+}
+
+// Derive two-letter initials from a full name (e.g. "Jane Doe" -> "JD").
+function getInitials(name) {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+// == End of demo auth utilities ===============================================
 
 // ── Shared: Icon ─────────────────────────────────────────────────────────────
 function Icon({ name, size = 16, color = 'currentColor' }) {
@@ -1250,8 +1433,8 @@ function RoleSelectPage({ setPage }) {
       accentBorder:'#b8d0f5',
       title:'Government Department',
       desc:'Post structured challenges, review AI-matched startup shortlists, oversee pilot projects and track outcomes against agreed KPIs.',
-      action:'Continue as Government',
-      dest:'govDashboard',
+      action:'Register as Government',
+      dest:'govRegister',
     },
     {
       id:'startup',
@@ -1261,8 +1444,8 @@ function RoleSelectPage({ setPage }) {
       accentBorder:'#9de0d8',
       title:'Startup',
       desc:'Discover government challenges that match your capabilities, submit structured proposals and manage your pilot project on the platform.',
-      action:'Continue as Startup',
-      dest:'startupDashboard',
+      action:'Register as Startup',
+      dest:'startupRegister',
     },
     {
       id:'evaluator',
@@ -1272,8 +1455,8 @@ function RoleSelectPage({ setPage }) {
       accentBorder:'#c4b0f0',
       title:'Evaluator',
       desc:'Review and score startup proposals as an independent domain expert using a consistent rubric. Provide commentary that informs department decisions.',
-      action:'Continue as Evaluator',
-      dest:'evaluatorDashboard',
+      action:'Register as Evaluator',
+      dest:'evaluatorRegister',
     },
   ];
 
@@ -1288,7 +1471,7 @@ function RoleSelectPage({ setPage }) {
           <span className="login-brand-name" style={{ color:'#173C70' }}>CivicBridge</span>
         </div>
         <h1 className="role-select-heading">Choose Your Role</h1>
-        <p className="role-select-sub">Select how you will use CivicBridge. Each role routes to its own dashboard in this prototype.</p>
+        <p className="role-select-sub">Select your role to create an account. Already registered? <button className="login-link-btn" onClick={() => setPage('login')}>Sign in here.</button></p>
       </div>
 
       {/* Role cards */}
@@ -1299,10 +1482,6 @@ function RoleSelectPage({ setPage }) {
             className="role-select-card"
             style={{ '--role-accent': r.accentBorder }}
             onClick={() => setPage(r.dest)}
-            tabIndex={0}
-            role="button"
-            aria-label={r.action}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPage(r.dest); } }}
           >
             <div className="role-select-icon" style={{ background: r.bg }}>
               <Icon name={r.icon} size={28} color={r.color} />
@@ -1323,7 +1502,7 @@ function RoleSelectPage({ setPage }) {
       {/* Demo notice */}
       <div className="role-select-demo-note">
         <Icon name="Info" size={14} color="#b45309" />
-        <span>Demo prototype — selecting a role routes directly to that dashboard without real authentication. No data is stored or verified.</span>
+        <span>Demo prototype — registration forms are frontend-only. No real account is created and no data is sent to any server.</span>
       </div>
 
       {/* Back */}
@@ -1948,6 +2127,470 @@ function GovDashboard({ setPage }) {
   );
 }
 
+// ── Registration: shared helpers ────────────────────────────────────────────
+// Validation helpers reused by all three registration forms.
+function validateRegEmail(v) {
+  if (!v.trim()) return 'Email address is required.';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return 'Enter a valid email address.';
+  return '';
+}
+function validatePassword(v) {
+  if (!v) return 'Password is required.';
+  if (v.length < 8) return 'Password must be at least 8 characters.';
+  return '';
+}
+function validateConfirm(pw, confirm) {
+  if (!confirm) return 'Please confirm your password.';
+  if (pw !== confirm) return 'Passwords do not match.';
+  return '';
+}
+
+// Shared password field with show/hide toggle — reuses login-* CSS.
+function PwField({ id, label, value, onChange, onBlur, error, touched, placeholder, autoComplete }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="login-field">
+      <label className="login-label" htmlFor={id}>{label}</label>
+      <div className="login-pw-wrap">
+        <input
+          id={id}
+          className={`login-input${touched && error ? ' login-input-error' : ''}`}
+          type={show ? 'text' : 'password'}
+          placeholder={placeholder || 'Enter password'}
+          value={value}
+          onChange={onChange}
+          onBlur={onBlur}
+          autoComplete={autoComplete || 'new-password'}
+        />
+        <button type="button" className="login-pw-toggle"
+          onClick={() => setShow(s => !s)}
+          aria-label={show ? 'Hide password' : 'Show password'}>
+          <Icon name={show ? 'EyeOff' : 'Eye'} size={16} color="#667085" />
+        </button>
+      </div>
+      {touched && error && (
+        <div className="login-field-error" role="alert">
+          <Icon name="AlertCircle" size={13} color="#dc2626" />{error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Shared text input field — reuses login-* CSS.
+function TextField({ id, label, value, onChange, onBlur, error, touched, placeholder, type, optional, autoComplete }) {
+  return (
+    <div className="login-field">
+      <label className="login-label" htmlFor={id}>
+        {label}{optional && <span className="reg-optional">(optional)</span>}
+      </label>
+      <input
+        id={id}
+        className={`login-input${touched && error ? ' login-input-error' : ''}`}
+        type={type || 'text'}
+        placeholder={placeholder || ''}
+        value={value}
+        onChange={onChange}
+        onBlur={onBlur}
+        autoComplete={autoComplete || 'off'}
+      />
+      {touched && error && (
+        <div className="login-field-error" role="alert">
+          <Icon name="AlertCircle" size={13} color="#dc2626" />{error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Shared select field.
+function SelectField({ id, label, value, onChange, onBlur, error, touched, options, placeholder }) {
+  return (
+    <div className="login-field">
+      <label className="login-label" htmlFor={id}>{label}</label>
+      <select
+        id={id}
+        className={`login-input${touched && error ? ' login-input-error' : ''}`}
+        style={{ appearance:'auto' }}
+        value={value}
+        onChange={onChange}
+        onBlur={onBlur}
+      >
+        <option value="">{placeholder || 'Select…'}</option>
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+      {touched && error && (
+        <div className="login-field-error" role="alert">
+          <Icon name="AlertCircle" size={13} color="#dc2626" />{error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Step indicator strip.
+function RegSteps({ steps, current }) {
+  return (
+    <div className="reg-steps">
+      {steps.map((s, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <div className={`reg-step-connector${i <= current ? ' done' : ''}`} />}
+          <div className={`reg-step${i === current ? ' active' : i < current ? ' done' : ''}`}>
+            <div className="reg-step-num">
+              {i < current ? <Icon name="Check" size={11} color="#fff" /> : i + 1}
+            </div>
+            <span>{s}</span>
+          </div>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+// Success screen shared by all three forms.
+function RegSuccess({ icon, iconBg, heading, sub, onDashboard, onHome, dashLabel }) {
+  return (
+    <div className="reg-success fade-in">
+      <div className="reg-success-icon" style={{ background: iconBg }}>
+        <Icon name={icon} size={28} color="#0F9D8A" />
+      </div>
+      <div className="reg-success-heading">{heading}</div>
+      <p className="reg-success-sub">{sub}</p>
+      <div className="reg-success-actions">
+        <button className="login-submit-btn" onClick={onDashboard}>
+          <Icon name="LayoutDashboard" size={16} color="#fff" /> {dashLabel || 'Go to Dashboard'}
+        </button>
+        <button className="login-back-btn" style={{ justifyContent:'center', marginTop:4 }} onClick={onHome}>
+          <Icon name="ArrowLeft" size={13} color="#667085" /> Back to homepage
+        </button>
+      </div>
+      <div className="reg-demo-notice">
+        <Icon name="Info" size={14} color="#b45309" />
+        <span><strong>Demo prototype.</strong> No account has been created on any server. This is a frontend-only simulation. Do not enter real passwords or sensitive personal information.</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Government Registration Page ──────────────────────────────────────────────
+function GovRegisterPage({ setPage }) {
+  const DEPTS = ['Sanitation Department','Water Authority','Transport Department','Urban Planning','Energy Department','Parks & Recreation','Health Department','Education Department','Finance Department','Other'];
+  const DESIG = ['Director','Deputy Director','Assistant Director','Section Officer','Technical Officer','Project Manager','Consultant','Other'];
+
+  const [f, setF] = useState({ name:'', email:'', password:'', confirm:'', dept:'', designation:'' });
+  const [t, setT] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+
+  const set = k => e => setF(p => ({ ...p, [k]: e.target.value }));
+  const touch = k => () => setT(p => ({ ...p, [k]: true }));
+
+  const errors = {
+    name:        !f.name.trim() ? 'Full name is required.' : '',
+    email:       validateRegEmail(f.email),
+    password:    validatePassword(f.password),
+    confirm:     validateConfirm(f.password, f.confirm),
+    dept:        !f.dept ? 'Please select a department.' : '',
+    designation: !f.designation ? 'Please select a designation.' : '',
+  };
+
+  function handleSubmit() {
+    setT({ name:true, email:true, password:true, confirm:true, dept:true, designation:true });
+    if (Object.values(errors).some(Boolean)) return;
+    // TODO: POST /api/auth/register { role:'gov', ...f } — connect to backend here
+    setSubmitted(true);
+  }
+
+  return (
+    <div className="login-page">
+      <div className="login-brand reg-brand-gov">
+        <div className="login-brand-inner">
+          <div className="login-brand-logo">
+            <div className="logo-mark" style={{ width:44, height:44 }}><Icon name="Building2" size={22} color="#fff" /></div>
+            <span className="login-brand-name">CivicBridge</span>
+          </div>
+          <h2 className="login-brand-headline">Government Department Registration</h2>
+          <p className="login-brand-sub">Create your department account to post challenges, review startup matches and track pilot outcomes on the platform.</p>
+          <div className="login-brand-points">
+            {['Post structured public challenges','Review AI-matched startup shortlists','Oversee pilots and track KPIs'].map(pt => (
+              <div key={pt} className="login-brand-point">
+                <div className="login-brand-point-icon"><Icon name="Check" size={14} color="#0F9D8A" /></div>
+                <span>{pt}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="login-form-panel">
+        <div className="login-form-inner">
+          <div className="login-mobile-logo">
+            <div className="logo-mark" style={{ width:36, height:36 }}><Icon name="Building2" size={18} color="#fff" /></div>
+            <span className="login-brand-name" style={{ color:'#173C70' }}>CivicBridge</span>
+          </div>
+          {submitted ? (
+            <RegSuccess
+              icon="Building2" iconBg="#EBF2FF"
+              heading="Department Account Created"
+              sub="Your government department account is ready. You can now post challenges and manage the innovation pipeline."
+              onDashboard={() => setPage('govDashboard')}
+              onHome={() => setPage('home')}
+              dashLabel="Go to Government Dashboard"
+            />
+          ) : (
+            <>
+              <RegSteps steps={['Account','Department']} current={0} />
+              <h1 className="login-heading">Register as Government</h1>
+              <p className="login-subheading">Create your department account to get started.</p>
+              <div className="reg-field-row">
+                <TextField id="gov-name" label="Full Name" value={f.name} onChange={set('name')} onBlur={touch('name')} error={errors.name} touched={t.name} placeholder="e.g. Priya Sharma" autoComplete="name" />
+                <TextField id="gov-email" label="Work Email" value={f.email} onChange={set('email')} onBlur={touch('email')} error={errors.email} touched={t.email} placeholder="you@dept.gov.in" type="email" autoComplete="email" />
+              </div>
+              <div className="reg-field-row">
+                <PwField id="gov-pw" label="Password" value={f.password} onChange={set('password')} onBlur={touch('password')} error={errors.password} touched={t.password} placeholder="Min. 8 characters" />
+                <PwField id="gov-cpw" label="Confirm Password" value={f.confirm} onChange={set('confirm')} onBlur={touch('confirm')} error={errors.confirm} touched={t.confirm} placeholder="Repeat password" />
+              </div>
+              <div className="reg-field-row">
+                <SelectField id="gov-dept" label="Department" value={f.dept} onChange={set('dept')} onBlur={touch('dept')} error={errors.dept} touched={t.dept} options={DEPTS} placeholder="Select department…" />
+                <SelectField id="gov-desig" label="Designation" value={f.designation} onChange={set('designation')} onBlur={touch('designation')} error={errors.designation} touched={t.designation} options={DESIG} placeholder="Select designation…" />
+              </div>
+              <button className="login-submit-btn" onClick={handleSubmit}>
+                <Icon name="UserPlus" size={16} color="#fff" /> Create Account
+              </button>
+              <p className="login-register-link">
+                Already have an account?{' '}
+                <button className="login-link-btn" onClick={() => setPage('login')}>Sign In</button>
+              </p>
+              <div className="reg-demo-notice">
+                <Icon name="Info" size={14} color="#b45309" />
+                <span><strong>Demo prototype.</strong> No real account is created. No data is sent to any server. Do not enter real passwords or government IDs.</span>
+              </div>
+              <div style={{ display:'flex', gap:12, marginTop:16, flexWrap:'wrap' }}>
+                <button className="login-back-btn" onClick={() => setPage('register')}>
+                  <Icon name="ArrowLeft" size={13} color="#667085" /> Back to role selection
+                </button>
+                <button className="login-back-btn" onClick={() => setPage('home')}>
+                  <Icon name="Home" size={13} color="#667085" /> Homepage
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Startup Registration Page ─────────────────────────────────────────────────
+function StartupRegisterPage({ setPage }) {
+  const DOMAINS = ['Artificial Intelligence','IoT & Sensors','Data Analytics','Cloud Computing','Computer Vision','Automation & RPA','Cybersecurity','Clean Energy','Water Technology','Smart Mobility','GovTech','HealthTech','EdTech','FinTech','Other'];
+
+  const [f, setF] = useState({ name:'', email:'', password:'', confirm:'', startupName:'', domain:'', website:'' });
+  const [t, setT] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+
+  const set = k => e => setF(p => ({ ...p, [k]: e.target.value }));
+  const touch = k => () => setT(p => ({ ...p, [k]: true }));
+
+  const errors = {
+    name:        !f.name.trim() ? 'Full name is required.' : '',
+    email:       validateRegEmail(f.email),
+    password:    validatePassword(f.password),
+    confirm:     validateConfirm(f.password, f.confirm),
+    startupName: !f.startupName.trim() ? 'Startup name is required.' : '',
+    domain:      !f.domain ? 'Please select a primary domain.' : '',
+    website:     f.website && !/^https?:\/\/.+/.test(f.website.trim()) ? 'Enter a valid URL starting with http:// or https://' : '',
+  };
+
+  function handleSubmit() {
+    setT({ name:true, email:true, password:true, confirm:true, startupName:true, domain:true, website:!!f.website });
+    const required = ['name','email','password','confirm','startupName','domain'];
+    if (required.some(k => errors[k]) || errors.website) return;
+    // TODO: POST /api/auth/register { role:'startup', ...f } — connect to backend here
+    setSubmitted(true);
+  }
+
+  return (
+    <div className="login-page">
+      <div className="login-brand reg-brand-startup">
+        <div className="login-brand-inner">
+          <div className="login-brand-logo">
+            <div className="logo-mark" style={{ width:44, height:44 }}><Icon name="Rocket" size={22} color="#fff" /></div>
+            <span className="login-brand-name">CivicBridge</span>
+          </div>
+          <h2 className="login-brand-headline">Startup Registration</h2>
+          <p className="login-brand-sub">Register your startup to discover government challenges, submit proposals and run pilot projects with public sector partners.</p>
+          <div className="login-brand-points">
+            {['Discover challenges matched to your domain','Submit structured proposals','Run supported pilot projects'].map(pt => (
+              <div key={pt} className="login-brand-point">
+                <div className="login-brand-point-icon"><Icon name="Check" size={14} color="#0F9D8A" /></div>
+                <span>{pt}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="login-form-panel">
+        <div className="login-form-inner">
+          <div className="login-mobile-logo">
+            <div className="logo-mark" style={{ width:36, height:36, background:'#0F9D8A' }}><Icon name="Rocket" size={18} color="#fff" /></div>
+            <span className="login-brand-name" style={{ color:'#173C70' }}>CivicBridge</span>
+          </div>
+          {submitted ? (
+            <RegSuccess
+              icon="Rocket" iconBg="#E6F7F5"
+              heading="Startup Account Created"
+              sub="Your startup profile is ready. Browse open government challenges and submit your first proposal."
+              onDashboard={() => setPage('startupDashboard')}
+              onHome={() => setPage('home')}
+              dashLabel="Go to Startup Dashboard"
+            />
+          ) : (
+            <>
+              <RegSteps steps={['Account','Startup']} current={0} />
+              <h1 className="login-heading">Register Your Startup</h1>
+              <p className="login-subheading">Create your account to access government challenges.</p>
+              <div className="reg-field-row">
+                <TextField id="st-name" label="Your Full Name" value={f.name} onChange={set('name')} onBlur={touch('name')} error={errors.name} touched={t.name} placeholder="e.g. Arjun Mehta" autoComplete="name" />
+                <TextField id="st-email" label="Email Address" value={f.email} onChange={set('email')} onBlur={touch('email')} error={errors.email} touched={t.email} placeholder="you@startup.com" type="email" autoComplete="email" />
+              </div>
+              <div className="reg-field-row">
+                <PwField id="st-pw" label="Password" value={f.password} onChange={set('password')} onBlur={touch('password')} error={errors.password} touched={t.password} placeholder="Min. 8 characters" />
+                <PwField id="st-cpw" label="Confirm Password" value={f.confirm} onChange={set('confirm')} onBlur={touch('confirm')} error={errors.confirm} touched={t.confirm} placeholder="Repeat password" />
+              </div>
+              <div className="reg-field-row">
+                <TextField id="st-sname" label="Startup Name" value={f.startupName} onChange={set('startupName')} onBlur={touch('startupName')} error={errors.startupName} touched={t.startupName} placeholder="e.g. UrbanAI Labs" />
+                <SelectField id="st-domain" label="Primary Domain" value={f.domain} onChange={set('domain')} onBlur={touch('domain')} error={errors.domain} touched={t.domain} options={DOMAINS} placeholder="Select domain…" />
+              </div>
+              <TextField id="st-web" label="Website" value={f.website} onChange={set('website')} onBlur={touch('website')} error={errors.website} touched={t.website} placeholder="https://yourstartup.com" type="url" optional autoComplete="url" />
+              <button className="login-submit-btn" style={{ background:'#0F9D8A' }} onClick={handleSubmit}>
+                <Icon name="UserPlus" size={16} color="#fff" /> Create Startup Account
+              </button>
+              <p className="login-register-link">
+                Already have an account?{' '}
+                <button className="login-link-btn" onClick={() => setPage('login')}>Sign In</button>
+              </p>
+              <div className="reg-demo-notice">
+                <Icon name="Info" size={14} color="#b45309" />
+                <span><strong>Demo prototype.</strong> No real account is created. No data is sent to any server.</span>
+              </div>
+              <div style={{ display:'flex', gap:12, marginTop:16, flexWrap:'wrap' }}>
+                <button className="login-back-btn" onClick={() => setPage('register')}>
+                  <Icon name="ArrowLeft" size={13} color="#667085" /> Back to role selection
+                </button>
+                <button className="login-back-btn" onClick={() => setPage('home')}>
+                  <Icon name="Home" size={13} color="#667085" /> Homepage
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Evaluator Registration Page ───────────────────────────────────────────────
+function EvaluatorRegisterPage({ setPage }) {
+  const EXPERTISE = ['Artificial Intelligence & ML','IoT & Embedded Systems','Data Science & Analytics','Cloud & Infrastructure','Cybersecurity','Smart Cities','Environmental Technology','Public Policy & Governance','Finance & Procurement','Healthcare Technology','Education Technology','Other'];
+
+  const [f, setF] = useState({ name:'', email:'', password:'', confirm:'', expertise:'', organisation:'' });
+  const [t, setT] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+
+  const set = k => e => setF(p => ({ ...p, [k]: e.target.value }));
+  const touch = k => () => setT(p => ({ ...p, [k]: true }));
+
+  const errors = {
+    name:      !f.name.trim() ? 'Full name is required.' : '',
+    email:     validateRegEmail(f.email),
+    password:  validatePassword(f.password),
+    confirm:   validateConfirm(f.password, f.confirm),
+    expertise: !f.expertise ? 'Please select your primary expertise.' : '',
+  };
+
+  function handleSubmit() {
+    setT({ name:true, email:true, password:true, confirm:true, expertise:true });
+    if (Object.values(errors).some(Boolean)) return;
+    // TODO: POST /api/auth/register { role:'evaluator', ...f } — connect to backend here
+    setSubmitted(true);
+  }
+
+  return (
+    <div className="login-page">
+      <div className="login-brand reg-brand-eval">
+        <div className="login-brand-inner">
+          <div className="login-brand-logo">
+            <div className="logo-mark" style={{ width:44, height:44, background:'rgba(255,255,255,0.15)' }}><Icon name="ClipboardCheck" size={22} color="#fff" /></div>
+            <span className="login-brand-name">CivicBridge</span>
+          </div>
+          <h2 className="login-brand-headline">Evaluator Registration</h2>
+          <p className="login-brand-sub">Join as an independent domain expert to review and score startup proposals using a consistent, transparent rubric.</p>
+          <div className="login-brand-points">
+            {['Score proposals against a structured rubric','Provide expert commentary to departments','Maintain independence and transparency'].map(pt => (
+              <div key={pt} className="login-brand-point">
+                <div className="login-brand-point-icon"><Icon name="Check" size={14} color="#0F9D8A" /></div>
+                <span>{pt}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="login-form-panel">
+        <div className="login-form-inner">
+          <div className="login-mobile-logo">
+            <div className="logo-mark" style={{ width:36, height:36, background:'#6d28d9' }}><Icon name="ClipboardCheck" size={18} color="#fff" /></div>
+            <span className="login-brand-name" style={{ color:'#173C70' }}>CivicBridge</span>
+          </div>
+          {submitted ? (
+            <RegSuccess
+              icon="ClipboardCheck" iconBg="#F3EEFF"
+              heading="Evaluator Account Created"
+              sub="Your evaluator profile is ready. You will be assigned proposals to review based on your area of expertise."
+              onDashboard={() => setPage('evaluatorDashboard')}
+              onHome={() => setPage('home')}
+              dashLabel="Go to Evaluator Dashboard"
+            />
+          ) : (
+            <>
+              <RegSteps steps={['Account','Expertise']} current={0} />
+              <h1 className="login-heading">Register as Evaluator</h1>
+              <p className="login-subheading">Join as an independent domain expert.</p>
+              <div className="reg-field-row">
+                <TextField id="ev-name" label="Full Name" value={f.name} onChange={set('name')} onBlur={touch('name')} error={errors.name} touched={t.name} placeholder="e.g. Dr. Anita Rao" autoComplete="name" />
+                <TextField id="ev-email" label="Email Address" value={f.email} onChange={set('email')} onBlur={touch('email')} error={errors.email} touched={t.email} placeholder="you@institution.ac.in" type="email" autoComplete="email" />
+              </div>
+              <div className="reg-field-row">
+                <PwField id="ev-pw" label="Password" value={f.password} onChange={set('password')} onBlur={touch('password')} error={errors.password} touched={t.password} placeholder="Min. 8 characters" />
+                <PwField id="ev-cpw" label="Confirm Password" value={f.confirm} onChange={set('confirm')} onBlur={touch('confirm')} error={errors.confirm} touched={t.confirm} placeholder="Repeat password" />
+              </div>
+              <SelectField id="ev-exp" label="Primary Expertise" value={f.expertise} onChange={set('expertise')} onBlur={touch('expertise')} error={errors.expertise} touched={t.expertise} options={EXPERTISE} placeholder="Select expertise…" />
+              <TextField id="ev-org" label="Organisation" value={f.organisation} onChange={set('organisation')} onBlur={touch('organisation')} error="" touched={false} placeholder="e.g. IIT Delhi / NASSCOM" optional autoComplete="organization" />
+              <button className="login-submit-btn" style={{ background:'#6d28d9' }} onClick={handleSubmit}>
+                <Icon name="UserPlus" size={16} color="#fff" /> Create Evaluator Account
+              </button>
+              <p className="login-register-link">
+                Already have an account?{' '}
+                <button className="login-link-btn" onClick={() => setPage('login')}>Sign In</button>
+              </p>
+              <div className="reg-demo-notice">
+                <Icon name="Info" size={14} color="#b45309" />
+                <span><strong>Demo prototype.</strong> No real account is created. No data is sent to any server.</span>
+              </div>
+              <div style={{ display:'flex', gap:12, marginTop:16, flexWrap:'wrap' }}>
+                <button className="login-back-btn" onClick={() => setPage('register')}>
+                  <Icon name="ArrowLeft" size={13} color="#667085" /> Back to role selection
+                </button>
+                <button className="login-back-btn" onClick={() => setPage('home')}>
+                  <Icon name="Home" size={13} color="#667085" /> Homepage
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Top-level App Router ──────────────────────────────────────────────────────
 function App() {
   const [page, setPage] = useState('home');
@@ -1961,6 +2604,9 @@ function App() {
   if (page === 'evaluatorDashboard') return <EvaluatorDashboard setPage={setPage} />;
   if (page === 'login')              return <LoginPage setPage={setPage} />;
   if (page === 'register' || page === 'roleSelect') return <RoleSelectPage setPage={setPage} />;
+  if (page === 'govRegister')        return <GovRegisterPage setPage={setPage} />;
+  if (page === 'startupRegister')    return <StartupRegisterPage setPage={setPage} />;
+  if (page === 'evaluatorRegister')  return <EvaluatorRegisterPage setPage={setPage} />;
 
   // Public site pages — wrapped with nav + footer
   const renderPage = () => {
