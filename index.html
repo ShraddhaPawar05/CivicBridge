@@ -1,0 +1,1990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CivicBridge — GovTech Innovation Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { navy:'#173C70', teal:'#0F9D8A', bg:'#F5F7FB', ink:'#182230', muted:'#667085', border:'#E5EAF1' },
+          fontFamily: { sans: ['Inter','sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="font-sans text-ink antialiased">
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ── Shared: Icon ─────────────────────────────────────────────────────────────
+function Icon({ name, size = 16, color = 'currentColor' }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!ref.current || !window.lucide) return;
+    const iconFn = window.lucide[name];
+    if (!iconFn) return;
+    const [, attrs, children] = typeof iconFn === 'function' ? iconFn() : iconFn;
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    Object.entries({ ...attrs, width: size, height: size, color }).forEach(([k,v]) => svg.setAttribute(k,v));
+    svg.style.display = 'block';
+    (children||[]).forEach(([ct,ca]) => {
+      const c = document.createElementNS(ns, ct);
+      Object.entries(ca||{}).forEach(([k,v]) => c.setAttribute(k,v));
+      svg.appendChild(c);
+    });
+    ref.current.innerHTML = '';
+    ref.current.appendChild(svg);
+  }, [name, size, color]);
+  return <span ref={ref} style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', lineHeight:0, flexShrink:0 }} />;
+}
+
+// ── Shared data ──────────────────────────────────────────────────────────────
+const PUBLIC_CHALLENGES = [
+  { id:1, title:'Smart Waste Collection', dept:'Sanitation Department', deadline:'30 Oct 2026', stage:'AI Matching', badge:'badge-blue', desc:'Optimize waste collection routes using AI and IoT sensors to reduce operational costs and improve city-wide efficiency.', tags:['AI','IoT','Smart City'] },
+  { id:2, title:'Urban Water Quality Monitoring', dept:'Water Authority', deadline:'15 Nov 2026', stage:'Evaluation', badge:'badge-amber', desc:'Deploy real-time water quality sensors and analytics to monitor contamination levels across the municipal supply network.', tags:['IoT','Analytics','Environment'] },
+  { id:3, title:'Traffic Congestion Monitoring', dept:'Transport Department', deadline:'20 Nov 2026', stage:'Pilot', badge:'badge-teal', desc:'Implement AI-powered traffic monitoring and adaptive signal control to reduce peak-hour congestion by 30%.', tags:['AI','Computer Vision','Transport'] },
+  { id:4, title:'Public Park Safety System', dept:'Parks & Recreation', deadline:'10 Dec 2026', stage:'Open', badge:'badge-purple', desc:'Deploy smart surveillance and incident-detection systems across public parks to improve citizen safety.', tags:['IoT','AI','Safety'] },
+  { id:5, title:'Digital Permit Processing', dept:'Urban Planning', deadline:'05 Jan 2027', stage:'Open', badge:'badge-purple', desc:'Automate building permit applications and approvals using AI document processing to cut processing time by 60%.', tags:['AI','Automation','GovTech'] },
+  { id:6, title:'Energy Grid Optimisation', dept:'Energy Department', deadline:'20 Jan 2027', stage:'Open', badge:'badge-purple', desc:'Use predictive analytics to balance energy load across the municipal grid and reduce peak consumption.', tags:['Analytics','Energy','Cloud'] },
+];
+
+const PUBLIC_STARTUPS = [
+  { id:1, name:'EcoTech Solutions', initials:'ET', color:'#173C70', location:'Singapore', desc:'AI and IoT solutions for smart city waste management and environmental monitoring.', tags:['AI','IoT','Data Analytics'], founded:2019 },
+  { id:2, name:'UrbanAI Labs', initials:'UA', color:'#0F9D8A', location:'Kuala Lumpur', desc:'Computer vision and AI platforms for urban mobility, traffic and public safety.', tags:['AI','Computer Vision','Cloud'], founded:2020 },
+  { id:3, name:'GreenGrid Technologies', initials:'GG', color:'#6d28d9', location:'Jakarta', desc:'IoT and analytics for smart energy grids, sustainability and carbon tracking.', tags:['IoT','Analytics','Energy'], founded:2018 },
+  { id:4, name:'CivicFlow Systems', initials:'CF', color:'#b45309', location:'Manila', desc:'Government process automation and digital transformation for public sector agencies.', tags:['Automation','GovTech','Cloud'], founded:2021 },
+  { id:5, name:'SafeCity AI', initials:'SC', color:'#0369a1', location:'Bangkok', desc:'AI-powered public safety, surveillance analytics and emergency response platforms.', tags:['AI','Safety','Analytics'], founded:2020 },
+  { id:6, name:'AquaSense Tech', initials:'AS', color:'#0F9D8A', location:'Ho Chi Minh City', desc:'Real-time water quality monitoring and predictive contamination detection systems.', tags:['IoT','Environment','Analytics'], founded:2022 },
+];
+
+const WORKFLOW_STEPS_PUB = [
+  { label:'Government\nChallenge', icon:'Building2' },
+  { label:'AI Startup\nMatching',  icon:'Zap' },
+  { label:'Proposal',              icon:'FileText' },
+  { label:'Evaluation',            icon:'ClipboardCheck' },
+  { label:'Pilot',                 icon:'Rocket' },
+  { label:'Performance',           icon:'BarChart2' },
+  { label:'Scale',                 icon:'TrendingUp' },
+];
+
+// ── Public Navbar ─────────────────────────────────────────────────────────────
+function PublicNav({ page, setPage }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const links = [
+    { id:'home', label:'Home' },
+    { id:'challenges', label:'Challenges' },
+    { id:'startups', label:'Startups' },
+    { id:'how', label:'How It Works' },
+    { id:'about', label:'About' },
+  ];
+  return (
+    <nav className="pub-nav">
+      <div className="pub-nav-logo" onClick={() => setPage('home')}>
+        <div className="logo-mark" style={{ width:32, height:32 }}>
+          <Icon name="Building2" size={16} color="#fff" />
+        </div>
+        <span className="pub-nav-wordmark">CivicBridge</span>
+      </div>
+      <div className="pub-nav-links">
+        {links.map(l => (
+          <div key={l.id} className={`pub-nav-item${page===l.id?' active':''}`} onClick={() => setPage(l.id)}>
+            {l.label}
+          </div>
+        ))}
+      </div>
+      <div className="pub-nav-actions">
+        <button className="btn-ghost" onClick={() => setPage('login')}>Login</button>
+        <button className="btn-teal" onClick={() => setPage('register')}>Get Started</button>
+      </div>
+    </nav>
+  );
+}
+
+// ── Public Footer ─────────────────────────────────────────────────────────────
+function PublicFooter({ setPage }) {
+  return (
+    <footer className="pub-footer">
+      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <div className="logo-mark" style={{ width:28, height:28 }}>
+          <Icon name="Building2" size={14} color="#fff" />
+        </div>
+        <span style={{ fontSize:14, fontWeight:700, color:'rgba(255,255,255,0.7)' }}>CivicBridge</span>
+      </div>
+      <span className="pub-footer-copy">© 2026 CivicBridge. GovTech Innovation Platform.</span>
+      <div className="pub-footer-links">
+        {['Privacy','Terms','Contact'].map(l => (
+          <span key={l} className="pub-footer-link">{l}</span>
+        ))}
+      </div>
+    </footer>
+  );
+}
+
+// ── Workflow Strip ────────────────────────────────────────────────────────────
+function PublicWorkflowStrip() {
+  return (
+    <div className="pub-workflow">
+      <div className="pub-workflow-inner">
+        {WORKFLOW_STEPS_PUB.map((s, i) => (
+          <div key={i} className="pub-wf-step">
+            <div className="pub-wf-circle">
+              <Icon name={s.icon} size={14} color="#667085" />
+            </div>
+            <div className="pub-wf-label">
+              {s.label.split('\n').map((ln,j) => <span key={j} style={{ display:'block' }}>{ln}</span>)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Home Page ─────────────────────────────────────────────────────────────────
+function HeroPreview() {
+  return (
+    <div className="home-preview-shell">
+      <div className="home-preview-bar">
+        <div className="home-preview-dots">
+          <span /><span /><span />
+        </div>
+        <span className="home-preview-bar-label">CivicBridge Platform — Demo</span>
+      </div>
+      <div className="home-preview-body">
+        {/* Challenge card */}
+        <div className="home-preview-challenge">
+          <div className="home-preview-challenge-top">
+            <span className="home-preview-dept">Transport Department</span>
+            <span className="home-preview-badge home-preview-badge-blue">AI Matching</span>
+          </div>
+          <div className="home-preview-challenge-title">Traffic Congestion Monitoring</div>
+          <div className="home-preview-challenge-meta">
+            <Icon name="Calendar" size={11} color="#667085" />
+            <span>Deadline: 20 Nov 2026</span>
+            <span className="home-preview-dot-sep">·</span>
+            <Icon name="Users" size={11} color="#667085" />
+            <span>10 applicants</span>
+          </div>
+        </div>
+        {/* Match row */}
+        <div className="home-preview-section-label">Top Startup Match</div>
+        <div className="home-preview-match">
+          <div className="home-preview-match-avatar" style={{ background:'#0F9D8A' }}>UA</div>
+          <div className="home-preview-match-info">
+            <div className="home-preview-match-name">UrbanAI Labs</div>
+            <div className="home-preview-match-tags">
+              <span>AI</span><span>Computer Vision</span><span>Cloud</span>
+            </div>
+          </div>
+          <div className="home-preview-match-score">
+            <div className="home-preview-score-val">88%</div>
+            <div className="home-preview-score-lbl">match</div>
+          </div>
+        </div>
+        {/* Pilot progress */}
+        <div className="home-preview-section-label" style={{ marginTop:14 }}>Pilot Progress — Demo Data</div>
+        <div className="home-preview-pilot">
+          <div className="home-preview-pilot-row">
+            <span>Route Optimisation</span>
+            <span className="home-preview-pilot-pct">72%</span>
+          </div>
+          <div className="home-preview-progress-track">
+            <div className="home-preview-progress-fill" style={{ width:'72%', background:'#0F9D8A' }} />
+          </div>
+          <div className="home-preview-pilot-row" style={{ marginTop:10 }}>
+            <span>Sensor Deployment</span>
+            <span className="home-preview-pilot-pct">45%</span>
+          </div>
+          <div className="home-preview-progress-track">
+            <div className="home-preview-progress-fill" style={{ width:'45%', background:'#173C70' }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HomePage({ setPage }) {
+  const workflowSteps = [
+    { icon:'Building2',      color:'#173C70', bg:'#EBF2FF', label:'Government Challenge',  desc:'A department publishes a structured challenge brief with defined success criteria and timeline.' },
+    { icon:'Zap',            color:'#0F9D8A', bg:'#E6F7F5', label:'AI Startup Matching',   desc:'The platform surfaces best-fit startups from a curated registry using technology and domain tags.' },
+    { icon:'FileText',       color:'#b45309', bg:'#FFF4E5', label:'Proposal Submission',   desc:'Shortlisted startups submit structured proposals covering solution, team, timeline and cost.' },
+    { icon:'ClipboardCheck', color:'#6d28d9', bg:'#F3EEFF', label:'Expert Evaluation',     desc:'An independent panel scores each proposal against a consistent rubric. Results are transparent.' },
+    { icon:'Rocket',         color:'#0369a1', bg:'#E0F2FE', label:'Pilot Project',          desc:'The selected startup runs a time-boxed pilot with agreed KPIs and government oversight.' },
+    { icon:'BarChart2',      color:'#0F9D8A', bg:'#E6F7F5', label:'Performance Review',    desc:'Pilot outcomes are reviewed against KPIs. Both parties provide feedback before a scale decision.' },
+    { icon:'TrendingUp',     color:'#173C70', bg:'#EBF2FF', label:'Scale the Solution',    desc:'Successful pilots are fast-tracked to full deployment with procurement and monitoring support.' },
+  ];
+
+  const govPoints = [
+    { icon:'FileText',       text:'Publish public challenges with structured briefs.' },
+    { icon:'Zap',            text:'Discover relevant startup capabilities through AI matching.' },
+    { icon:'ClipboardCheck', text:'Evaluate proposals through a transparent, scored process.' },
+    { icon:'BarChart2',      text:'Track pilot outcomes against agreed KPIs.' },
+  ];
+
+  const startupPoints = [
+    { icon:'Search',         text:'Discover public-sector problems relevant to your capabilities.' },
+    { icon:'FileText',       text:'Submit structured proposals with clear evaluation criteria.' },
+    { icon:'Rocket',         text:'Demonstrate your solution through a supported pilot project.' },
+    { icon:'TrendingUp',     text:'Build a track record and scale after a successful pilot.' },
+  ];
+
+  const evalCriteria = [
+    { label:'Technical Fit',      score:9, color:'#173C70' },
+    { label:'Team Capability',    score:8, color:'#0F9D8A' },
+    { label:'Cost & Value',       score:7, color:'#b45309' },
+    { label:'Risk Mitigation',    score:8, color:'#6d28d9' },
+  ];
+
+  return (
+    <div className="public-site">
+
+      {/* ── Hero ── */}
+      <section className="home-hero fade-in">
+        <div className="home-hero-inner">
+          <div className="home-hero-left">
+            <div className="home-hero-eyebrow">
+              <Icon name="Building2" size={12} color="#0a7a6e" />
+              Indian GovTech Innovation Platform
+            </div>
+            <h1 className="home-hero-headline">
+              Turning Government Challenges into
+              <span className="home-hero-accent"> Startup Solutions</span>
+            </h1>
+            <p className="home-hero-sub">
+              CivicBridge connects government departments with innovative startups to solve public challenges through structured proposals, expert evaluation and real-world pilot projects.
+            </p>
+            <div className="home-hero-actions">
+              <button className="btn-primary btn-lg" onClick={() => setPage('challenges')}>
+                <Icon name="Search" size={16} color="#fff" /> Explore Challenges
+              </button>
+              <button className="btn-outline btn-lg" onClick={() => setPage('how')}>
+                How It Works
+              </button>
+            </div>
+          </div>
+          <div className="home-hero-right">
+            <HeroPreview />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Seven-stage workflow ── */}
+      <section className="home-workflow-section">
+        <div className="home-workflow-inner">
+          <div className="home-workflow-header">
+            <span className="section-eyebrow">The Process</span>
+            <h2 className="home-workflow-heading">Seven Stages from Challenge to Scale</h2>
+            <p className="home-workflow-sub">A structured, transparent process that gives government departments confidence and startups a fair opportunity.</p>
+          </div>
+          <div className="home-workflow-steps">
+            {workflowSteps.map((s, i) => (
+              <div key={i} className="home-wf-step">
+                <div className="home-wf-num">{i + 1}</div>
+                <div className="home-wf-icon" style={{ background: s.bg }}>
+                  <Icon name={s.icon} size={20} color={s.color} />
+                </div>
+                <div className="home-wf-label">{s.label}</div>
+                <div className="home-wf-desc">{s.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Two audience sections ── */}
+      <section className="home-audience-section">
+        <div className="home-audience-inner">
+          <div className="home-audience-header">
+            <span className="section-eyebrow">Who It's For</span>
+            <h2 className="section-heading">Built for Both Sides</h2>
+          </div>
+          <div className="home-audience-grid">
+            {/* Government */}
+            <div className="home-audience-panel home-audience-gov">
+              <div className="home-audience-panel-icon" style={{ background:'#EBF2FF' }}>
+                <Icon name="Building2" size={24} color="#173C70" />
+              </div>
+              <h3 className="home-audience-panel-title">For Government Departments</h3>
+              <ul className="home-audience-list">
+                {govPoints.map((p, i) => (
+                  <li key={i} className="home-audience-item">
+                    <div className="home-audience-item-icon" style={{ background:'#EBF2FF' }}>
+                      <Icon name={p.icon} size={14} color="#173C70" />
+                    </div>
+                    <span>{p.text}</span>
+                  </li>
+                ))}
+              </ul>
+              <button className="home-audience-cta home-audience-cta-gov" onClick={() => setPage('login')}>
+                <Icon name="PlusCircle" size={15} color="#fff" /> Post a Challenge
+              </button>
+            </div>
+            {/* Startups */}
+            <div className="home-audience-panel home-audience-startup">
+              <div className="home-audience-panel-icon" style={{ background:'#E6F7F5' }}>
+                <Icon name="Rocket" size={24} color="#0F9D8A" />
+              </div>
+              <h3 className="home-audience-panel-title">For Startups</h3>
+              <ul className="home-audience-list">
+                {startupPoints.map((p, i) => (
+                  <li key={i} className="home-audience-item">
+                    <div className="home-audience-item-icon" style={{ background:'#E6F7F5' }}>
+                      <Icon name={p.icon} size={14} color="#0F9D8A" />
+                    </div>
+                    <span>{p.text}</span>
+                  </li>
+                ))}
+              </ul>
+              <button className="home-audience-cta home-audience-cta-startup" onClick={() => setPage('challenges')}>
+                <Icon name="Search" size={15} color="#fff" /> Explore Opportunities
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Evaluation & trust ── */}
+      <section className="home-eval-section">
+        <div className="home-eval-inner">
+          <div className="home-eval-left">
+            <span className="section-eyebrow">Evaluation & Pilots</span>
+            <h2 className="home-eval-heading">Structured Evaluation. Measurable Outcomes.</h2>
+            <p className="home-eval-body">
+              Every proposal is scored against a consistent rubric by independent domain experts. Every pilot runs against agreed KPIs with regular milestone reviews. Transparent criteria mean both sides know exactly how decisions are made.
+            </p>
+            <ul className="home-eval-points">
+              <li><Icon name="Check" size={14} color="#0F9D8A" /> Consistent scoring rubric across all proposals</li>
+              <li><Icon name="Check" size={14} color="#0F9D8A" /> Independent evaluators with no conflict of interest</li>
+              <li><Icon name="Check" size={14} color="#0F9D8A" /> Pilot KPIs agreed before work begins</li>
+              <li><Icon name="Check" size={14} color="#0F9D8A" /> Audit-ready documentation at every stage</li>
+            </ul>
+          </div>
+          <div className="home-eval-right">
+            <div className="home-scorecard">
+              <div className="home-scorecard-header">
+                <Icon name="ClipboardCheck" size={16} color="#173C70" />
+                <span>Evaluation Scorecard — Illustrative</span>
+              </div>
+              <div className="home-scorecard-note">Sample criteria only. Not based on real evaluation data.</div>
+              {evalCriteria.map((c, i) => (
+                <div key={i} className="home-scorecard-row">
+                  <div className="home-scorecard-label">{c.label}</div>
+                  <div className="home-scorecard-bar-wrap">
+                    <div className="home-scorecard-bar-track">
+                      <div className="home-scorecard-bar-fill" style={{ width: `${c.score * 10}%`, background: c.color }} />
+                    </div>
+                    <span className="home-scorecard-score">{c.score}/10</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Final CTA ── */}
+      <section className="cta-section">
+        <h2 className="cta-heading">Ready to Bridge the Gap?</h2>
+        <p className="cta-sub">Whether you are a government department with a challenge or a startup with a solution, CivicBridge is your starting point.</p>
+        <div className="cta-actions">
+          <button className="btn-white" onClick={() => setPage('login')}>
+            <Icon name="Building2" size={16} color="#173C70" /> Post a Challenge
+          </button>
+          <button className="btn-white-outline" onClick={() => setPage('challenges')}>
+            <Icon name="Search" size={16} color="#fff" /> Explore Opportunities
+          </button>
+        </div>
+      </section>
+
+    </div>
+  );
+}
+
+// ── Challenges Page ───────────────────────────────────────────────────────────
+function ChallengesPage({ setPage }) {
+  const [query, setQuery]           = useState('');
+  const [stageFilter, setStageFilter] = useState('All');
+  const stages = ['All', 'Open', 'AI Matching', 'Evaluation', 'Pilot'];
+
+  const filtered = PUBLIC_CHALLENGES.filter(c => {
+    const q = query.toLowerCase();
+    const matchQ = c.title.toLowerCase().includes(q) || c.dept.toLowerCase().includes(q);
+    const matchS = stageFilter === 'All' || c.stage === stageFilter;
+    return matchQ && matchS;
+  });
+
+  const isFiltered = query !== '' || stageFilter !== 'All';
+
+  function reset() {
+    setQuery('');
+    setStageFilter('All');
+  }
+
+  // Stage badge colours consistent with existing badge-* classes
+  const stageBadge = {
+    'Open':        'badge-purple',
+    'AI Matching': 'badge-blue',
+    'Evaluation':  'badge-amber',
+    'Pilot':       'badge-teal',
+  };
+
+  // Whether a challenge is still accepting applications
+  const canApply = stage => stage === 'Open' || stage === 'AI Matching';
+
+  return (
+    <div className="public-site">
+
+      {/* ── Page header ── */}
+      <div className="chall-header fade-in">
+        <div className="chall-header-inner">
+          <div className="chall-header-text">
+            <span className="section-eyebrow">Opportunity Marketplace</span>
+            <h1 className="chall-heading">Government Challenges</h1>
+            <p className="chall-subheading">
+              Browse active challenges posted by government departments. Find problems that match your startup's capabilities, review the brief and submit a structured proposal.
+            </p>
+          </div>
+          <div className="chall-header-cta">
+            <button className="btn-primary btn-lg" onClick={() => setPage('register')}>
+              <Icon name="Rocket" size={16} color="#fff" /> Register as a Startup
+            </button>
+            <p className="chall-header-cta-note">Demo prototype — no real registration</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Toolbar ── */}
+      <div className="chall-toolbar">
+        <div className="chall-toolbar-inner">
+          {/* Search */}
+          <div className="chall-search-wrap">
+            <span className="chall-search-icon"><Icon name="Search" size={15} color="#667085" /></span>
+            <input
+              className="chall-search-input"
+              type="text"
+              placeholder="Search by title or department…"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              aria-label="Search challenges"
+            />
+            {query && (
+              <button className="chall-search-clear" onClick={() => setQuery('')} aria-label="Clear search">
+                <Icon name="X" size={13} color="#667085" />
+              </button>
+            )}
+          </div>
+
+          {/* Stage filters */}
+          <div className="chall-filters">
+            {stages.map(s => (
+              <button
+                key={s}
+                className={`chall-filter-btn${stageFilter === s ? ' active' : ''}`}
+                onClick={() => setStageFilter(s)}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+
+          {/* Result count + reset */}
+          <div className="chall-toolbar-meta">
+            <span className="chall-result-count">
+              {filtered.length} of {PUBLIC_CHALLENGES.length} challenges
+            </span>
+            {isFiltered && (
+              <button className="chall-reset-btn" onClick={reset}>
+                <Icon name="RotateCcw" size={12} color="#173C70" /> Reset
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Grid ── */}
+      <div className="chall-grid-section">
+        <div className="chall-grid-inner">
+          {filtered.length === 0 ? (
+            <div className="chall-empty">
+              <div className="chall-empty-icon">
+                <Icon name="SearchX" size={28} color="#667085" />
+              </div>
+              <div className="chall-empty-title">No challenges match your search</div>
+              <p className="chall-empty-body">
+                Try a different keyword or stage filter, or reset to see all open challenges.
+              </p>
+              <button className="btn-outline" onClick={reset}>
+                <Icon name="RotateCcw" size={14} color="#173C70" /> Reset Filters
+              </button>
+            </div>
+          ) : (
+            <div className="chall-grid">
+              {filtered.map(c => (
+                <div key={c.id} className="chall-card fade-in">
+                  {/* Card top: dept + stage badge */}
+                  <div className="chall-card-top">
+                    <div className="chall-card-dept">
+                      <Icon name="Building2" size={12} color="#0F9D8A" />
+                      {c.dept}
+                    </div>
+                    <span className={`badge ${stageBadge[c.stage] || 'badge-purple'}`}>{c.stage}</span>
+                  </div>
+
+                  {/* Title */}
+                  <h3 className="chall-card-title">{c.title}</h3>
+
+                  {/* Description */}
+                  <p className="chall-card-desc">{c.desc}</p>
+
+                  {/* Tags */}
+                  <div className="chall-card-tags">
+                    {c.tags.map(t => <span key={t} className="tag">{t}</span>)}
+                  </div>
+
+                  {/* Footer: deadline + action */}
+                  <div className="chall-card-footer">
+                    <span className="chall-card-deadline">
+                      <Icon name="Calendar" size={12} color="#667085" />
+                      {c.deadline}
+                    </span>
+                    {canApply(c.stage) ? (
+                      <button
+                        className="chall-apply-btn"
+                        onClick={() => setPage('register')}
+                      >
+                        Apply Now <Icon name="ArrowRight" size={13} color="#fff" />
+                      </button>
+                    ) : (
+                      <span className="chall-stage-note">
+                        {c.stage === 'Pilot' ? 'In Pilot' : 'Under Review'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Bottom CTA ── */}
+      <div className="cta-section">
+        <h2 className="cta-heading">Have a Solution to Propose?</h2>
+        <p className="cta-sub">Register as a startup to submit structured proposals for open government challenges.</p>
+        <div className="cta-actions">
+          <button className="btn-white" onClick={() => setPage('register')}>
+            <Icon name="Rocket" size={16} color="#173C70" /> Register as a Startup
+          </button>
+          <button className="btn-white-outline" onClick={() => setPage('how')}>
+            <Icon name="BookOpen" size={16} color="#fff" /> How It Works
+          </button>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+// ── Startups Page ─────────────────────────────────────────────────────────────
+function StartupsPage({ setPage }) {
+  const [query,      setQuery]      = useState('');
+  const [tagFilter,  setTagFilter]  = useState('All');
+  const [selected,   setSelected]   = useState(null);
+
+  // All unique tags across the dataset
+  const ALL_TAGS = ['All', ...Array.from(new Set(PUBLIC_STARTUPS.flatMap(s => s.tags))).sort()];
+
+  const filtered = PUBLIC_STARTUPS.filter(s => {
+    const q = query.toLowerCase();
+    const matchQ = s.name.toLowerCase().includes(q) || s.tags.some(t => t.toLowerCase().includes(q));
+    const matchT = tagFilter === 'All' || s.tags.includes(tagFilter);
+    return matchQ && matchT;
+  });
+
+  const isFiltered = query !== '' || tagFilter !== 'All';
+
+  function reset() {
+    setQuery('');
+    setTagFilter('All');
+  }
+
+  // Close modal on Escape
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = e => { if (e.key === 'Escape') setSelected(null); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [selected]);
+
+  return (
+    <div className="public-site">
+
+      {/* ── Page header ── */}
+      <div className="stup-header fade-in">
+        <div className="stup-header-inner">
+          <div className="stup-header-text">
+            <span className="section-eyebrow">Startup Directory</span>
+            <h1 className="stup-heading">Discover Startups</h1>
+            <p className="stup-subheading">
+              Explore startups with capabilities that can help address public-sector challenges and deliver practical solutions.
+            </p>
+          </div>
+          <div className="stup-header-cta">
+            <button className="btn-primary btn-lg" onClick={() => setPage('challenges')}>
+              <Icon name="Search" size={16} color="#fff" /> Explore Challenges
+            </button>
+            <p className="stup-header-cta-note">Demo prototype — illustrative data only</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Toolbar ── */}
+      <div className="stup-toolbar">
+        <div className="stup-toolbar-inner">
+          {/* Search */}
+          <div className="stup-search-wrap">
+            <span className="stup-search-icon"><Icon name="Search" size={15} color="#667085" /></span>
+            <input
+              className="stup-search-input"
+              type="text"
+              placeholder="Search by name or technology…"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              aria-label="Search startups"
+            />
+            {query && (
+              <button className="stup-search-clear" onClick={() => setQuery('')} aria-label="Clear search">
+                <Icon name="X" size={13} color="#667085" />
+              </button>
+            )}
+          </div>
+
+          {/* Tag filter pills */}
+          <div className="stup-filters">
+            {ALL_TAGS.map(t => (
+              <button
+                key={t}
+                className={`stup-filter-btn${tagFilter === t ? ' active' : ''}`}
+                onClick={() => setTagFilter(t)}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
+          {/* Result count + reset */}
+          <div className="stup-toolbar-meta">
+            <span className="stup-result-count">
+              {filtered.length} of {PUBLIC_STARTUPS.length} startups
+            </span>
+            {isFiltered && (
+              <button className="stup-reset-btn" onClick={reset}>
+                <Icon name="RotateCcw" size={12} color="#173C70" /> Reset
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Grid ── */}
+      <div className="stup-grid-section">
+        <div className="stup-grid-inner">
+          {filtered.length === 0 ? (
+            <div className="stup-empty">
+              <div className="stup-empty-icon">
+                <Icon name="SearchX" size={28} color="#667085" />
+              </div>
+              <div className="stup-empty-title">No startups match your search</div>
+              <p className="stup-empty-body">
+                Try a different keyword or capability filter, or reset to see all startups.
+              </p>
+              <button className="btn-outline" onClick={reset}>
+                <Icon name="RotateCcw" size={14} color="#173C70" /> Reset Filters
+              </button>
+            </div>
+          ) : (
+            <div className="stup-grid">
+              {filtered.map(s => (
+                <div key={s.id} className="stup-card fade-in">
+                  {/* Card header: avatar + name + location */}
+                  <div className="stup-card-header">
+                    <div className="stup-avatar" style={{ background: s.color }}>{s.initials}</div>
+                    <div className="stup-card-identity">
+                      <div className="stup-card-name">{s.name}</div>
+                      {s.location && (
+                        <div className="stup-card-loc">
+                          <Icon name="MapPin" size={11} color="#667085" />
+                          {s.location}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <p className="stup-card-desc">{s.desc}</p>
+
+                  {/* Tags */}
+                  <div className="stup-card-tags">
+                    {s.tags.map(t => <span key={t} className="tag">{t}</span>)}
+                  </div>
+
+                  {/* Footer: founded + action */}
+                  <div className="stup-card-footer">
+                    {s.founded && (
+                      <span className="stup-card-founded">
+                        <Icon name="Calendar" size={11} color="#667085" />
+                        Est. {s.founded}
+                      </span>
+                    )}
+                    <button
+                      className="stup-view-btn"
+                      onClick={() => setSelected(s)}
+                    >
+                      View Profile <Icon name="ArrowRight" size={13} color="#173C70" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Bottom CTA ── */}
+      <div className="cta-section">
+        <h2 className="cta-heading">Ready to Tackle a Government Challenge?</h2>
+        <p className="cta-sub">Browse active challenges posted by government departments and find opportunities that match your startup's capabilities.</p>
+        <div className="cta-actions">
+          <button className="btn-white" onClick={() => setPage('challenges')}>
+            <Icon name="Search" size={16} color="#173C70" /> Explore Challenges
+          </button>
+          <button className="btn-white-outline" onClick={() => setPage('how')}>
+            <Icon name="BookOpen" size={16} color="#fff" /> How It Works
+          </button>
+        </div>
+      </div>
+
+      {/* ── Profile modal ── */}
+      {selected && (
+        <div
+          className="stup-modal-overlay"
+          onClick={e => { if (e.target === e.currentTarget) setSelected(null); }}
+        >
+          <div className="stup-modal">
+            {/* Modal header */}
+            <div className="stup-modal-header">
+              <div className="stup-modal-identity">
+                <div className="stup-avatar stup-avatar-lg" style={{ background: selected.color }}>
+                  {selected.initials}
+                </div>
+                <div>
+                  <div className="stup-modal-name">{selected.name}</div>
+                  {selected.location && (
+                    <div className="stup-modal-loc">
+                      <Icon name="MapPin" size={13} color="#667085" />
+                      {selected.location}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <button
+                className="stup-modal-close"
+                onClick={() => setSelected(null)}
+                aria-label="Close profile"
+              >
+                <Icon name="X" size={16} color="#667085" />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div className="stup-modal-body">
+              <p className="stup-modal-desc">{selected.desc}</p>
+
+              <div className="stup-modal-section-label">Capabilities &amp; Technologies</div>
+              <div className="stup-modal-tags">
+                {selected.tags.map(t => <span key={t} className="stup-modal-tag">{t}</span>)}
+              </div>
+
+              {selected.founded && (
+                <div className="stup-modal-meta-row">
+                  <Icon name="Calendar" size={14} color="#667085" />
+                  <span>Founded {selected.founded}</span>
+                </div>
+              )}
+
+              <div className="stup-modal-demo-note">
+                <Icon name="Info" size={13} color="#b45309" />
+                Illustrative demo data — not a real company profile.
+              </div>
+            </div>
+
+            {/* Modal footer */}
+            <div className="stup-modal-footer">
+              <button className="btn-secondary" onClick={() => setSelected(null)}>Close</button>
+              <button className="btn-primary" onClick={() => { setSelected(null); setPage('challenges'); }}>
+                <Icon name="Search" size={14} color="#fff" /> View Challenges
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+// ── How It Works Page ─────────────────────────────────────────────────────────
+function HowItWorksPage({ setPage }) {
+  const steps = [
+    {
+      icon:'Building2', color:'#173C70', bg:'#EBF2FF',
+      title:'Government Challenge',
+      who:'Government Department',
+      desc:'A government department identifies an operational problem and publishes a structured challenge brief on CivicBridge. The brief defines the problem statement, expected outcomes, success criteria, budget range and application deadline.',
+      next:'The published challenge is analysed by the platform to identify suitable startups.',
+    },
+    {
+      icon:'Zap', color:'#0F9D8A', bg:'#E6F7F5',
+      title:'AI Startup Matching',
+      who:'CivicBridge Platform',
+      desc:'The platform compares the challenge requirements against a curated registry of startups using technology tags, domain expertise and capability profiles. A shortlist of best-fit startups is surfaced for the department to review.',
+      next:'Shortlisted startups are invited to submit a formal proposal.',
+    },
+    {
+      icon:'FileText', color:'#b45309', bg:'#FFF4E5',
+      title:'Proposal Submission',
+      who:'Startup',
+      desc:'Each shortlisted startup submits a structured proposal covering their proposed solution, technical approach, team credentials, implementation timeline, pricing and risk mitigation plan. All proposals follow a consistent format to support fair comparison.',
+      next:'Submitted proposals are passed to an independent evaluation panel.',
+    },
+    {
+      icon:'ClipboardCheck', color:'#6d28d9', bg:'#F3EEFF',
+      title:'Expert Evaluation',
+      who:'Independent Evaluators',
+      desc:'A panel of independent domain experts scores each proposal against a consistent rubric covering technical fit, team capability, cost and value, and risk. Scores and commentary are transparent. The department receives a ranked shortlist with evaluator notes.',
+      next:'The department selects a startup to proceed to a time-boxed pilot.',
+    },
+    {
+      icon:'Rocket', color:'#0369a1', bg:'#E0F2FE',
+      title:'Pilot Project',
+      who:'Startup + Government Department',
+      desc:'The selected startup runs a structured, time-boxed pilot project. KPIs are agreed before work begins. Regular milestone check-ins are held with a dedicated government liaison. Progress and issues are tracked on the platform throughout the pilot period.',
+      next:'At the end of the pilot, outcomes are reviewed against the agreed KPIs.',
+    },
+    {
+      icon:'BarChart2', color:'#0F9D8A', bg:'#E6F7F5',
+      title:'Performance Review',
+      who:'Government Department + Startup',
+      desc:'Pilot performance data is reviewed against the agreed KPIs. Both the government department and the startup provide structured feedback. An independent review produces a scale recommendation, documenting what worked, what did not, and what conditions must be met to proceed.',
+      next:'Successful pilots are fast-tracked to full deployment.',
+    },
+    {
+      icon:'TrendingUp', color:'#173C70', bg:'#EBF2FF',
+      title:'Scale the Solution',
+      who:'Government Department + CivicBridge',
+      desc:'Pilots that meet their KPIs are fast-tracked to full deployment. CivicBridge provides procurement documentation, contract templates and ongoing performance monitoring support to help both parties transition from pilot to production at scale.',
+      next:null,
+    },
+  ];
+
+  return (
+    <div className="public-site">
+
+      {/* ── Page header ── */}
+      <div className="hiw-header fade-in">
+        <div className="hiw-header-inner">
+          <span className="section-eyebrow">The Process</span>
+          <h1 className="hiw-heading">How CivicBridge Works</h1>
+          <p className="hiw-subheading">
+            A structured, seven-stage process that takes a government challenge from problem statement to a scaled, production-ready solution. Every stage has defined inputs, outputs and responsible parties.
+          </p>
+        </div>
+      </div>
+
+      {/* ── Compact overview strip ── */}
+      <PublicWorkflowStrip />
+
+      {/* ── Stage detail cards ── */}
+      <div className="hiw-stages-section">
+        <div className="hiw-stages-inner">
+          {steps.map((s, i) => (
+            <div key={i} className="hiw-stage fade-in">
+              {/* Left: number + connector */}
+              <div className="hiw-stage-spine">
+                <div className="hiw-stage-num" style={{ background: s.color }}>{i + 1}</div>
+                {i < steps.length - 1 && <div className="hiw-stage-line" />}
+              </div>
+
+              {/* Right: card */}
+              <div className="hiw-stage-card">
+                <div className="hiw-stage-card-top">
+                  <div className="hiw-stage-icon" style={{ background: s.bg }}>
+                    <Icon name={s.icon} size={22} color={s.color} />
+                  </div>
+                  <div className="hiw-stage-meta">
+                    <div className="hiw-stage-label">Stage {i + 1}</div>
+                    <h2 className="hiw-stage-title">{s.title}</h2>
+                    <div className="hiw-stage-who">
+                      <Icon name="Users" size={12} color="#667085" />
+                      {s.who}
+                    </div>
+                  </div>
+                </div>
+                <p className="hiw-stage-desc">{s.desc}</p>
+                {s.next && (
+                  <div className="hiw-stage-next">
+                    <Icon name="ArrowRight" size={13} color="#0F9D8A" />
+                    <span>{s.next}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Who is this for ── */}
+      <div className="hiw-roles-section">
+        <div className="hiw-roles-inner">
+          <div className="hiw-roles-header">
+            <span className="section-eyebrow">Who Uses CivicBridge</span>
+            <h2 className="hiw-roles-heading">Three Roles, One Platform</h2>
+          </div>
+          <div className="hiw-roles-grid">
+            <div className="hiw-role-card">
+              <div className="hiw-role-icon" style={{ background:'#EBF2FF' }}>
+                <Icon name="Building2" size={22} color="#173C70" />
+              </div>
+              <h3 className="hiw-role-title">Government Departments</h3>
+              <p className="hiw-role-desc">Post structured challenges, review AI-matched startup shortlists, oversee pilots and track outcomes against agreed KPIs.</p>
+              <button className="hiw-role-btn hiw-role-btn-gov" onClick={() => setPage('challenges')}>
+                View Open Challenges <Icon name="ArrowRight" size={13} color="#173C70" />
+              </button>
+            </div>
+            <div className="hiw-role-card">
+              <div className="hiw-role-icon" style={{ background:'#E6F7F5' }}>
+                <Icon name="Rocket" size={22} color="#0F9D8A" />
+              </div>
+              <h3 className="hiw-role-title">Startups</h3>
+              <p className="hiw-role-desc">Discover government challenges that match your capabilities, submit structured proposals and demonstrate your solution through a supported pilot.</p>
+              <button className="hiw-role-btn hiw-role-btn-startup" onClick={() => setPage('startups')}>
+                Browse Startups <Icon name="ArrowRight" size={13} color="#0F9D8A" />
+              </button>
+            </div>
+            <div className="hiw-role-card">
+              <div className="hiw-role-icon" style={{ background:'#F3EEFF' }}>
+                <Icon name="ClipboardCheck" size={22} color="#6d28d9" />
+              </div>
+              <h3 className="hiw-role-title">Evaluators</h3>
+              <p className="hiw-role-desc">Review and score startup proposals as an independent domain expert using a consistent rubric. Provide commentary that helps departments make informed decisions.</p>
+              <button className="hiw-role-btn hiw-role-btn-eval" onClick={() => setPage('register')}>
+                Join as Evaluator <Icon name="ArrowRight" size={13} color="#6d28d9" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── CTA ── */}
+      <div className="cta-section">
+        <h2 className="cta-heading">Ready to Get Started?</h2>
+        <p className="cta-sub">Explore active government challenges or register your startup to begin the process.</p>
+        <div className="cta-actions">
+          <button className="btn-white" onClick={() => setPage('challenges')}>
+            <Icon name="Search" size={16} color="#173C70" /> Explore Challenges
+          </button>
+          <button className="btn-white-outline" onClick={() => setPage('register')}>
+            <Icon name="Rocket" size={16} color="#fff" /> Register Your Startup
+          </button>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+// ── About Page ────────────────────────────────────────────────────────────────
+function AboutPage({ setPage }) {
+  const team = [
+    { name:'Sarah Chen',     role:'Chief Executive Officer',    initials:'SC', color:'#173C70' },
+    { name:'Raj Patel',      role:'Chief Technology Officer',   initials:'RP', color:'#0F9D8A' },
+    { name:'Aisha Malik',    role:'Head of Government Affairs', initials:'AM', color:'#6d28d9' },
+    { name:'David Lim',      role:'Head of Startup Relations',  initials:'DL', color:'#b45309' },
+  ];
+  const values = [
+    { icon:'Shield',      title:'Transparency',  desc:'Every evaluation, every score and every decision is documented and accessible to all parties.' },
+    { icon:'Users',       title:'Inclusivity',   desc:'We actively recruit startups from underrepresented regions and ensure fair access to opportunities.' },
+    { icon:'BarChart2',   title:'Accountability',desc:'Pilots are tracked against agreed KPIs. We hold both sides accountable for outcomes.' },
+    { icon:'Zap',         title:'Innovation',    desc:'We continuously improve our matching algorithms and evaluation frameworks based on real outcomes.' },
+  ];
+  return (
+    <div className="public-site">
+      <div className="about-hero fade-in">
+        <span className="section-eyebrow">About CivicBridge</span>
+        <h1 className="section-heading" style={{ fontSize:42 }}>Bridging Public Sector Needs<br />with Private Sector Innovation</h1>
+        <p className="about-mission">
+          CivicBridge was founded on the belief that government departments deserve access to the best innovative solutions, and that startups deserve a fair, structured path to public sector contracts. We built the infrastructure to make that happen.
+        </p>
+      </div>
+      <div className="pub-section">
+        <div style={{ textAlign:'center', marginBottom:40 }}>
+          <span className="section-eyebrow">Our Values</span>
+          <h2 className="section-heading" style={{ fontSize:30 }}>What We Stand For</h2>
+        </div>
+        <div className="eval-grid">
+          {values.map(v => (
+            <div key={v.title} className="eval-card">
+              <div className="eval-icon" style={{ background:'#EBF2FF' }}>
+                <Icon name={v.icon} size={22} color="#173C70" />
+              </div>
+              <div className="eval-card-title">{v.title}</div>
+              <div className="eval-card-desc">{v.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ background:'#F5F7FB' }}>
+        <div className="pub-section">
+          <div style={{ textAlign:'center', marginBottom:40 }}>
+            <span className="section-eyebrow">The Team</span>
+            <h2 className="section-heading" style={{ fontSize:30 }}>Leadership</h2>
+            <p style={{ fontSize:14, color:'#667085', marginTop:8 }}>Sample team — demonstration data only.</p>
+          </div>
+          <div className="team-grid">
+            {team.map(m => (
+              <div key={m.name} className="team-card">
+                <div className="team-avatar" style={{ background:m.color }}>{m.initials}</div>
+                <div className="team-name">{m.name}</div>
+                <div className="team-role">{m.role}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="cta-section">
+        <h2 className="cta-heading">Join the Platform</h2>
+        <p className="cta-sub">Government departments and startups across Southeast Asia are already using CivicBridge.</p>
+        <div className="cta-actions">
+          <button className="btn-white" onClick={() => setPage('register')}>
+            <Icon name="ArrowRight" size={16} color="#173C70" /> Get Started
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Login Page ────────────────────────────────────────────────────────────────
+function LoginPage({ setPage }) {
+  const [email,       setEmail]       = useState('');
+  const [password,    setPassword]    = useState('');
+  const [showPw,      setShowPw]      = useState(false);
+  const [emailError,  setEmailError]  = useState('');
+  const [touched,     setTouched]     = useState({ email: false, password: false });
+
+  function validateEmail(val) {
+    if (!val.trim()) return 'Email address is required.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())) return 'Enter a valid email address.';
+    return '';
+  }
+
+  function handleEmailBlur() {
+    setTouched(t => ({ ...t, email: true }));
+    setEmailError(validateEmail(email));
+  }
+
+  function handleSubmit() {
+    const err = validateEmail(email);
+    setTouched({ email: true, password: true });
+    setEmailError(err);
+    if (err) return;
+    // Prototype: no real auth — navigate to role selection
+    setPage('roleSelect');
+  }
+
+  return (
+    <div className="login-page">
+      {/* Left panel — branding */}
+      <div className="login-brand">
+        <div className="login-brand-inner">
+          <div className="login-brand-logo">
+            <div className="logo-mark" style={{ width:44, height:44 }}>
+              <Icon name="Building2" size={22} color="#fff" />
+            </div>
+            <span className="login-brand-name">CivicBridge</span>
+          </div>
+          <h2 className="login-brand-headline">India's GovTech Innovation Platform</h2>
+          <p className="login-brand-sub">
+            Connecting government departments with innovative startups through structured challenges, expert evaluation and real-world pilots.
+          </p>
+          <div className="login-brand-points">
+            <div className="login-brand-point">
+              <div className="login-brand-point-icon"><Icon name="Building2" size={14} color="#0F9D8A" /></div>
+              <span>Post and manage government challenges</span>
+            </div>
+            <div className="login-brand-point">
+              <div className="login-brand-point-icon"><Icon name="Rocket" size={14} color="#0F9D8A" /></div>
+              <span>Discover opportunities as a startup</span>
+            </div>
+            <div className="login-brand-point">
+              <div className="login-brand-point-icon"><Icon name="ClipboardCheck" size={14} color="#0F9D8A" /></div>
+              <span>Evaluate proposals as an independent expert</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right panel — form */}
+      <div className="login-form-panel">
+        <div className="login-form-inner">
+          {/* Mobile logo */}
+          <div className="login-mobile-logo">
+            <div className="logo-mark" style={{ width:36, height:36 }}>
+              <Icon name="Building2" size={18} color="#fff" />
+            </div>
+            <span className="login-brand-name" style={{ color:'#173C70' }}>CivicBridge</span>
+          </div>
+
+          <h1 className="login-heading">Sign in to your account</h1>
+          <p className="login-subheading">Access your dashboard to manage challenges, proposals and pilots.</p>
+
+          {/* Email */}
+          <div className="login-field">
+            <label className="login-label" htmlFor="login-email">Email address</label>
+            <input
+              id="login-email"
+              className={`login-input${touched.email && emailError ? ' login-input-error' : ''}`}
+              type="email"
+              placeholder="you@organisation.gov"
+              value={email}
+              onChange={e => { setEmail(e.target.value); if (touched.email) setEmailError(validateEmail(e.target.value)); }}
+              onBlur={handleEmailBlur}
+              autoComplete="email"
+              aria-describedby={touched.email && emailError ? 'email-error' : undefined}
+            />
+            {touched.email && emailError && (
+              <div className="login-field-error" id="email-error" role="alert">
+                <Icon name="AlertCircle" size={13} color="#dc2626" />
+                {emailError}
+              </div>
+            )}
+          </div>
+
+          {/* Password */}
+          <div className="login-field">
+            <label className="login-label" htmlFor="login-password">Password</label>
+            <div className="login-pw-wrap">
+              <input
+                id="login-password"
+                className="login-input"
+                type={showPw ? 'text' : 'password'}
+                placeholder="Enter your password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                onBlur={() => setTouched(t => ({ ...t, password: true }))}
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="login-pw-toggle"
+                onClick={() => setShowPw(v => !v)}
+                aria-label={showPw ? 'Hide password' : 'Show password'}
+              >
+                <Icon name={showPw ? 'EyeOff' : 'Eye'} size={16} color="#667085" />
+              </button>
+            </div>
+          </div>
+
+          {/* Submit */}
+          <button className="login-submit-btn" onClick={handleSubmit}>
+            <Icon name="LogIn" size={16} color="#fff" /> Sign In
+          </button>
+
+          {/* Register link */}
+          <p className="login-register-link">
+            Don't have an account?{' '}
+            <button className="login-link-btn" onClick={() => setPage('register')}>Get Started</button>
+          </p>
+
+          {/* Demo notice */}
+          <div className="login-demo-notice">
+            <Icon name="Info" size={14} color="#b45309" />
+            <div>
+              <strong>Demo prototype.</strong> No real authentication exists. Entering any email and password and clicking Sign In will route you to role selection. No credentials are verified or stored.
+            </div>
+          </div>
+
+          {/* Back link */}
+          <button className="login-back-btn" onClick={() => setPage('home')}>
+            <Icon name="ArrowLeft" size={13} color="#667085" /> Back to homepage
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Role Selection / Register ─────────────────────────────────────────────────
+function RoleSelectPage({ setPage }) {
+  const roles = [
+    {
+      id:'gov',
+      icon:'Building2',
+      bg:'#EBF2FF',
+      color:'#173C70',
+      accentBorder:'#b8d0f5',
+      title:'Government Department',
+      desc:'Post structured challenges, review AI-matched startup shortlists, oversee pilot projects and track outcomes against agreed KPIs.',
+      action:'Continue as Government',
+      dest:'govDashboard',
+    },
+    {
+      id:'startup',
+      icon:'Rocket',
+      bg:'#E6F7F5',
+      color:'#0F9D8A',
+      accentBorder:'#9de0d8',
+      title:'Startup',
+      desc:'Discover government challenges that match your capabilities, submit structured proposals and manage your pilot project on the platform.',
+      action:'Continue as Startup',
+      dest:'startupDashboard',
+    },
+    {
+      id:'evaluator',
+      icon:'ClipboardCheck',
+      bg:'#F3EEFF',
+      color:'#6d28d9',
+      accentBorder:'#c4b0f0',
+      title:'Evaluator',
+      desc:'Review and score startup proposals as an independent domain expert using a consistent rubric. Provide commentary that informs department decisions.',
+      action:'Continue as Evaluator',
+      dest:'evaluatorDashboard',
+    },
+  ];
+
+  return (
+    <div className="role-page">
+      {/* Header */}
+      <div className="role-select-header">
+        <div className="login-brand-logo" style={{ justifyContent:'center', marginBottom:20 }}>
+          <div className="logo-mark" style={{ width:40, height:40 }}>
+            <Icon name="Building2" size={20} color="#fff" />
+          </div>
+          <span className="login-brand-name" style={{ color:'#173C70' }}>CivicBridge</span>
+        </div>
+        <h1 className="role-select-heading">Choose Your Role</h1>
+        <p className="role-select-sub">Select how you will use CivicBridge. Each role routes to its own dashboard in this prototype.</p>
+      </div>
+
+      {/* Role cards */}
+      <div className="role-select-grid">
+        {roles.map(r => (
+          <div
+            key={r.id}
+            className="role-select-card"
+            style={{ '--role-accent': r.accentBorder }}
+            onClick={() => setPage(r.dest)}
+            tabIndex={0}
+            role="button"
+            aria-label={r.action}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPage(r.dest); } }}
+          >
+            <div className="role-select-icon" style={{ background: r.bg }}>
+              <Icon name={r.icon} size={28} color={r.color} />
+            </div>
+            <div className="role-select-card-title">{r.title}</div>
+            <p className="role-select-card-desc">{r.desc}</p>
+            <button
+              className="role-select-btn"
+              style={{ background: r.color }}
+              onClick={e => { e.stopPropagation(); setPage(r.dest); }}
+            >
+              {r.action} <Icon name="ArrowRight" size={14} color="#fff" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Demo notice */}
+      <div className="role-select-demo-note">
+        <Icon name="Info" size={14} color="#b45309" />
+        <span>Demo prototype — selecting a role routes directly to that dashboard without real authentication. No data is stored or verified.</span>
+      </div>
+
+      {/* Back */}
+      <button className="login-back-btn" style={{ marginTop:8 }} onClick={() => setPage('home')}>
+        <Icon name="ArrowLeft" size={13} color="#667085" /> Back to homepage
+      </button>
+    </div>
+  );
+}
+
+// ── Startup Dashboard ─────────────────────────────────────────────────────────
+function StartupDashboard({ setPage }) {
+  const [activeNav, setActiveNav] = useState('overview');
+  const navItems = [
+    { id:'overview',    label:'Overview',          icon:'LayoutDashboard' },
+    { id:'challenges',  label:'Browse Challenges', icon:'Search' },
+    { id:'proposals',   label:'My Proposals',      icon:'FileText' },
+    { id:'pilot',       label:'Active Pilot',      icon:'Rocket' },
+    { id:'profile',     label:'Company Profile',   icon:'Building2' },
+    { id:'settings',    label:'Settings',          icon:'Settings' },
+  ];
+  const stats = [
+    { value:'06', label:'Challenges Applied',  icon:'FileText',  bg:'#EBF2FF', color:'#173C70' },
+    { value:'02', label:'Proposals Submitted', icon:'Inbox',     bg:'#E6F7F5', color:'#0F9D8A' },
+    { value:'01', label:'Active Pilot',        icon:'Rocket',    bg:'#F3EEFF', color:'#6d28d9' },
+    { value:'88%', label:'Avg Match Score',    icon:'TrendingUp',bg:'#FFF4E5', color:'#b45309' },
+  ];
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div className="logo-mark"><Icon name="Rocket" size={18} color="#fff" /></div>
+            <div>
+              <div className="logo-text">UrbanAI Labs</div>
+              <div className="logo-sub">Startup Portal</div>
+            </div>
+          </div>
+        </div>
+        <nav className="nav-section">
+          {navItems.map(item => (
+            <div key={item.id} className={`nav-item${activeNav===item.id?' active':''}`} onClick={() => setActiveNav(item.id)}>
+              <Icon name={item.icon} size={16} color={activeNav===item.id ? '#0F9D8A' : 'rgba(255,255,255,0.65)'} />
+              <span className="nav-label">{item.label}</span>
+            </div>
+          ))}
+          <div style={{ marginTop:'auto', paddingTop:16 }}>
+            <div className="nav-item" onClick={() => setPage('home')}>
+              <Icon name="LogOut" size={16} color="rgba(255,255,255,0.65)" />
+              <span className="nav-label">Exit to Homepage</span>
+            </div>
+          </div>
+        </nav>
+      </aside>
+      <div className="main-area">
+        <header className="top-header">
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:11, color:'#667085' }}>Startup Portal / {navItems.find(n=>n.id===activeNav)?.label}</div>
+            <div style={{ fontSize:15, fontWeight:700, color:'#182230' }}>Startup Dashboard</div>
+          </div>
+          <div className="avatar" style={{ background:'#0F9D8A' }}>UA</div>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:'#182230' }}>UrbanAI Labs</div>
+            <div style={{ fontSize:11, color:'#667085' }}>Startup</div>
+          </div>
+        </header>
+        <div className="page-content fade-in">
+          <div className="welcome-bar">
+            <div>
+              <h1 style={{ fontSize:20, fontWeight:700, color:'#182230', margin:0 }}>Welcome back, UrbanAI Labs</h1>
+              <p style={{ fontSize:13, color:'#667085', marginTop:4, marginBottom:0 }}>Browse open challenges, manage your proposals and track your active pilot.</p>
+            </div>
+            <button className="btn-primary" onClick={() => setActiveNav('challenges')}>
+              <Icon name="Search" size={15} color="#fff" /> Browse Challenges
+            </button>
+          </div>
+          <div className="summary-grid">
+            {stats.map(c => (
+              <div key={c.label} className="summary-card">
+                <div className="summary-icon" style={{ background:c.bg }}>
+                  <Icon name={c.icon} size={20} color={c.color} />
+                </div>
+                <div>
+                  <div className="summary-value">{c.value}</div>
+                  <div className="summary-label">{c.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="card" style={{ marginBottom:20 }}>
+            <div className="card-header">
+              <span className="card-title">Recommended Challenges</span>
+              <button className="btn-secondary" style={{ fontSize:12, padding:'5px 12px' }} onClick={() => setActiveNav('challenges')}>View All</button>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead><tr>{['Challenge','Department','Match','Deadline','Action'].map(h=><th key={h}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {PUBLIC_CHALLENGES.slice(0,3).map(c => (
+                    <tr key={c.id}>
+                      <td style={{ fontWeight:500 }}>{c.title}</td>
+                      <td style={{ color:'#667085' }}>{c.dept}</td>
+                      <td><span className="badge badge-teal">{90 - c.id * 2}% match</span></td>
+                      <td style={{ color:'#667085' }}>{c.deadline}</td>
+                      <td><button className="view-link">Apply</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Evaluator Dashboard ───────────────────────────────────────────────────────
+function EvaluatorDashboard({ setPage }) {
+  const [activeNav, setActiveNav] = useState('queue');
+  const navItems = [
+    { id:'queue',    label:'Review Queue',    icon:'ClipboardCheck' },
+    { id:'active',   label:'Active Reviews',  icon:'FileText' },
+    { id:'completed',label:'Completed',       icon:'CheckCircle' },
+    { id:'settings', label:'Settings',        icon:'Settings' },
+  ];
+  const queue = [
+    { id:1, challenge:'Smart Waste Collection',         startup:'EcoTech Solutions',     due:'05 Nov 2026', priority:'High' },
+    { id:2, challenge:'Urban Water Quality Monitoring', startup:'AquaSense Tech',         due:'10 Nov 2026', priority:'Medium' },
+    { id:3, challenge:'Traffic Congestion Monitoring',  startup:'UrbanAI Labs',           due:'12 Nov 2026', priority:'High' },
+  ];
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div className="logo-mark" style={{ background:'#6d28d9' }}><Icon name="ClipboardCheck" size={18} color="#fff" /></div>
+            <div>
+              <div className="logo-text">Evaluator</div>
+              <div className="logo-sub">Review Portal</div>
+            </div>
+          </div>
+        </div>
+        <nav className="nav-section">
+          {navItems.map(item => (
+            <div key={item.id} className={`nav-item${activeNav===item.id?' active':''}`} onClick={() => setActiveNav(item.id)}>
+              <Icon name={item.icon} size={16} color={activeNav===item.id ? '#0F9D8A' : 'rgba(255,255,255,0.65)'} />
+              <span className="nav-label">{item.label}</span>
+            </div>
+          ))}
+          <div style={{ marginTop:'auto', paddingTop:16 }}>
+            <div className="nav-item" onClick={() => setPage('home')}>
+              <Icon name="LogOut" size={16} color="rgba(255,255,255,0.65)" />
+              <span className="nav-label">Exit to Homepage</span>
+            </div>
+          </div>
+        </nav>
+      </aside>
+      <div className="main-area">
+        <header className="top-header">
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:11, color:'#667085' }}>Evaluator Portal / {navItems.find(n=>n.id===activeNav)?.label}</div>
+            <div style={{ fontSize:15, fontWeight:700, color:'#182230' }}>Evaluator Dashboard</div>
+          </div>
+          <div className="avatar" style={{ background:'#6d28d9' }}>EV</div>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:'#182230' }}>Dr. A. Rahman</div>
+            <div style={{ fontSize:11, color:'#667085' }}>Evaluator</div>
+          </div>
+        </header>
+        <div className="page-content fade-in">
+          <div className="welcome-bar">
+            <div>
+              <h1 style={{ fontSize:20, fontWeight:700, color:'#182230', margin:0 }}>Welcome back, Dr. Rahman</h1>
+              <p style={{ fontSize:13, color:'#667085', marginTop:4, marginBottom:0 }}>You have {queue.length} proposals awaiting your review.</p>
+            </div>
+          </div>
+          <div className="summary-grid" style={{ gridTemplateColumns:'repeat(3,1fr)' }}>
+            {[
+              { value:'03', label:'Pending Reviews',   icon:'ClipboardCheck', bg:'#F3EEFF', color:'#6d28d9' },
+              { value:'08', label:'Completed Reviews', icon:'CheckCircle',    bg:'#E6F7F5', color:'#0F9D8A' },
+              { value:'4.8', label:'Avg Score Given',  icon:'Star',           bg:'#FFF4E5', color:'#b45309' },
+            ].map(c => (
+              <div key={c.label} className="summary-card">
+                <div className="summary-icon" style={{ background:c.bg }}><Icon name={c.icon} size={20} color={c.color} /></div>
+                <div><div className="summary-value">{c.value}</div><div className="summary-label">{c.label}</div></div>
+              </div>
+            ))}
+          </div>
+          <div className="card">
+            <div className="card-header"><span className="card-title">Review Queue</span></div>
+            <div className="table-wrap">
+              <table>
+                <thead><tr>{['Challenge','Startup','Due Date','Priority','Action'].map(h=><th key={h}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {queue.map(q => (
+                    <tr key={q.id}>
+                      <td style={{ fontWeight:500 }}>{q.challenge}</td>
+                      <td style={{ color:'#667085' }}>{q.startup}</td>
+                      <td style={{ color:'#667085' }}>{q.due}</td>
+                      <td><span className={`badge ${q.priority==='High'?'badge-amber':'badge-blue'}`}>{q.priority}</span></td>
+                      <td><button className="view-link">Start Review</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GOVERNMENT DASHBOARD — preserved exactly from original implementation
+// ══════════════════════════════════════════════════════════════════════════════
+
+const NAV_ITEMS = [
+  { id:'dashboard',   label:'Dashboard',       icon:'LayoutDashboard' },
+  { id:'challenges',  label:'My Challenges',   icon:'FileText'        },
+  { id:'post',        label:'Post Challenge',  icon:'PlusCircle'      },
+  { id:'matches',     label:'Startup Matches', icon:'Zap'             },
+  { id:'proposals',   label:'Proposals',       icon:'Inbox'           },
+  { id:'evaluation',  label:'Evaluation',      icon:'ClipboardCheck'  },
+  { id:'pilot',       label:'Pilot Tracking',  icon:'Rocket'          },
+  { id:'performance', label:'Performance',     icon:'BarChart2'       },
+  { id:'settings',    label:'Settings',        icon:'Settings'        },
+];
+
+const SUMMARY_CARDS = [
+  { value:'08', label:'Active Challenges',     icon:'FileText',       bg:'#EBF2FF', color:'#173C70' },
+  { value:'24', label:'Applications Received', icon:'Inbox',          bg:'#E6F7F5', color:'#0F9D8A' },
+  { value:'07', label:'Under Evaluation',      icon:'ClipboardCheck', bg:'#FFF4E5', color:'#b45309' },
+  { value:'03', label:'Active Pilots',         icon:'Rocket',         bg:'#F3EEFF', color:'#6d28d9' },
+];
+
+const CHALLENGES = [
+  { id:1, name:'Smart Waste Collection',         apps:8,  stage:'AI Matching', badge:'badge-blue',  deadline:'30 Oct 2026', dept:'Sanitation Dept', desc:'Optimize waste collection routes using AI and IoT sensors to reduce operational costs and improve efficiency across the city.' },
+  { id:2, name:'Urban Water Quality Monitoring', apps:6,  stage:'Evaluation',  badge:'badge-amber', deadline:'15 Nov 2026', dept:'Water Authority', desc:'Deploy real-time water quality sensors and analytics to monitor contamination levels across the municipal water supply network.' },
+  { id:3, name:'Traffic Congestion Monitoring',  apps:10, stage:'Pilot',       badge:'badge-teal',  deadline:'20 Nov 2026', dept:'Transport Dept',  desc:'Implement AI-powered traffic monitoring and adaptive signal control to reduce peak-hour congestion by 30%.' },
+];
+
+const STARTUPS = [
+  { id:1, name:'EcoTech Solutions',      match:92, tags:['AI','IoT','Data Analytics'],      initials:'ET', color:'#173C70' },
+  { id:2, name:'UrbanAI Labs',           match:88, tags:['AI','Computer Vision','Cloud'],   initials:'UA', color:'#0F9D8A' },
+  { id:3, name:'GreenGrid Technologies', match:84, tags:['IoT','Analytics','Cloud'],        initials:'GG', color:'#6d28d9' },
+];
+
+const WORKFLOW_STEPS = [
+  { id:1, label:'Government\nChallenge', icon:'Building2',      state:'done'   },
+  { id:2, label:'AI Startup\nMatching',  icon:'Zap',            state:'done'   },
+  { id:3, label:'Proposal',              icon:'FileText',       state:'active' },
+  { id:4, label:'Evaluation',            icon:'ClipboardCheck', state:'active' },
+  { id:5, label:'Pilot',                 icon:'Rocket',         state:'idle'   },
+  { id:6, label:'Performance',           icon:'BarChart2',      state:'idle'   },
+  { id:7, label:'Scale',                 icon:'TrendingUp',     state:'idle'   },
+];
+
+const NOTIFICATIONS = [
+  { title:'New application received',     sub:'Smart Waste Collection · 2 min ago' },
+  { title:'Evaluation deadline reminder', sub:'Urban Water Quality · 1 day left'   },
+  { title:'Pilot milestone reached',      sub:'Traffic Monitoring · Just now'       },
+];
+
+function GovSidebar({ active, onSelect, collapsed, onExit }) {
+  return (
+    <aside className={`sidebar${collapsed?' collapsed':''}`}>
+      <div className="sidebar-logo">
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div className="logo-mark"><Icon name="Building2" size={18} color="#fff" /></div>
+          <div>
+            <div className="logo-text">CivicBridge</div>
+            <div className="logo-sub">GovTech Innovation</div>
+          </div>
+        </div>
+      </div>
+      <nav className="nav-section">
+        {NAV_ITEMS.map(item => (
+          <div key={item.id} className={`nav-item${active===item.id?' active':''}`} onClick={() => onSelect(item.id)} title={collapsed ? item.label : undefined}>
+            <Icon name={item.icon} size={16} color={active===item.id ? '#0F9D8A' : 'rgba(255,255,255,0.65)'} />
+            <span className="nav-label">{item.label}</span>
+          </div>
+        ))}
+        <div style={{ marginTop:16 }}>
+          <div className="nav-item" onClick={onExit}>
+            <Icon name="LogOut" size={16} color="rgba(255,255,255,0.65)" />
+            <span className="nav-label">Exit to Homepage</span>
+          </div>
+        </div>
+      </nav>
+    </aside>
+  );
+}
+
+function GovHeader({ onToggleSidebar }) {
+  const [notifOpen, setNotifOpen]     = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const notifRef   = useRef(null);
+  const profileRef = useRef(null);
+  useEffect(() => {
+    function handler(e) {
+      if (notifRef.current   && !notifRef.current.contains(e.target))   setNotifOpen(false);
+      if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+  return (
+    <header className="top-header">
+      <button className="sidebar-toggle" onClick={onToggleSidebar} aria-label="Toggle sidebar">
+        <Icon name="Menu" size={16} />
+      </button>
+      <div style={{ display:'flex', flexDirection:'column' }}>
+        <span style={{ fontSize:11, color:'#667085' }}>Home / Dashboard</span>
+        <span style={{ fontSize:14, fontWeight:600, color:'#182230', lineHeight:'1.3' }}>Government Dashboard</span>
+      </div>
+      <div className="search-wrap" style={{ marginLeft:'auto' }}>
+        <span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span>
+        <input type="text" placeholder="Search…" aria-label="Global search" />
+      </div>
+      <div className="dropdown-wrap" ref={notifRef}>
+        <button className="icon-btn" onClick={() => { setNotifOpen(o=>!o); setProfileOpen(false); }} aria-label="Notifications">
+          <Icon name="Bell" size={16} />
+          <span className="notif-dot" />
+        </button>
+        {notifOpen && (
+          <div className="dropdown-menu" style={{ minWidth:280 }}>
+            <div style={{ padding:'12px 16px', borderBottom:'1px solid #E5EAF1', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <span style={{ fontSize:14, fontWeight:600 }}>Notifications</span>
+              <span style={{ fontSize:12, fontWeight:600, color:'#0F9D8A', cursor:'pointer' }}>Mark all read</span>
+            </div>
+            {NOTIFICATIONS.map((n,i) => (
+              <div key={i} className="notif-item">
+                <div className="notif-item-title">{n.title}</div>
+                <div className="notif-item-sub">{n.sub}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="dropdown-wrap" ref={profileRef}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding:'4px 8px', borderRadius:8 }} onClick={() => { setProfileOpen(o=>!o); setNotifOpen(false); }}>
+          <div className="avatar">MC</div>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:'#182230', lineHeight:'1.3' }}>Municipal Corp.</div>
+            <div style={{ fontSize:11, color:'#667085' }}>Government</div>
+          </div>
+          <Icon name="ChevronDown" size={14} color="#667085" />
+        </div>
+        {profileOpen && (
+          <div className="dropdown-menu">
+            <div style={{ padding:'12px 16px', borderBottom:'1px solid #E5EAF1' }}>
+              <div style={{ fontSize:14, fontWeight:600 }}>Municipal Corporation</div>
+              <div style={{ fontSize:12, color:'#667085', marginTop:2 }}>admin@municipal.gov</div>
+            </div>
+            {[['User','My Profile'],['Settings','Settings'],['HelpCircle','Help & Support']].map(([icon,label]) => (
+              <div key={label} className="dropdown-item">
+                <Icon name={icon} size={14} color="#667085" /> {label}
+              </div>
+            ))}
+            <div className="dropdown-divider" />
+            <div className="dropdown-item" style={{ color:'#ef4444' }}>
+              <Icon name="LogOut" size={14} color="#ef4444" /> Sign Out
+            </div>
+          </div>
+        )}
+      </div>
+    </header>
+  );
+}
+
+function SummaryCards() {
+  return (
+    <div className="summary-grid">
+      {SUMMARY_CARDS.map(c => (
+        <div key={c.label} className="summary-card fade-in">
+          <div className="summary-icon" style={{ background:c.bg }}>
+            <Icon name={c.icon} size={20} color={c.color} />
+          </div>
+          <div>
+            <div className="summary-value">{c.value}</div>
+            <div className="summary-label">{c.label}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ChallengesCard({ onView }) {
+  const [query, setQuery] = useState('');
+  const filtered = CHALLENGES.filter(c =>
+    c.name.toLowerCase().includes(query.toLowerCase()) ||
+    c.stage.toLowerCase().includes(query.toLowerCase())
+  );
+  return (
+    <div className="card">
+      <div className="card-header">
+        <span className="card-title">My Government Challenges</span>
+        <div className="search-wrap" style={{ maxWidth:200 }}>
+          <span className="search-icon"><Icon name="Search" size={13} color="#667085" /></span>
+          <input type="text" placeholder="Filter challenges…" value={query} onChange={e => setQuery(e.target.value)} aria-label="Filter challenges" />
+        </div>
+      </div>
+      <div className="table-wrap">
+        <table>
+          <thead><tr>{['Challenge','Applications','Stage','Deadline','Action'].map(h=><th key={h}>{h}</th>)}</tr></thead>
+          <tbody>
+            {filtered.length === 0
+              ? <tr><td colSpan={5} style={{ textAlign:'center', padding:'32px 16px', color:'#667085', fontSize:13 }}>No challenges match your filter.</td></tr>
+              : filtered.map(c => (
+                <tr key={c.id}>
+                  <td style={{ fontWeight:500 }}>{c.name}</td>
+                  <td style={{ color:'#667085' }}>{c.apps}</td>
+                  <td><span className={`badge ${c.badge}`}>{c.stage}</span></td>
+                  <td style={{ color:'#667085' }}>{c.deadline}</td>
+                  <td><button className="view-link" onClick={() => onView(c)}>View</button></td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+      <div style={{ padding:'10px 16px', borderTop:'1px solid #E5EAF1' }}>
+        <button className="view-link" style={{ fontSize:12 }}>View All Challenges →</button>
+      </div>
+    </div>
+  );
+}
+
+function StartupsCard() {
+  return (
+    <div className="card">
+      <div className="card-header">
+        <span className="card-title">Recommended Startups</span>
+        <button className="btn-secondary" style={{ fontSize:12, padding:'5px 12px' }}>View All</button>
+      </div>
+      <div className="startup-list">
+        {STARTUPS.map(s => (
+          <div key={s.id} className="startup-card">
+            <div className="startup-avatar" style={{ background:s.color }}>{s.initials}</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                <span className="startup-name">{s.name}</span>
+                <span className="match-pill">
+                  <Icon name="TrendingUp" size={10} color="#0a7a6e" /> {s.match}% match
+                </span>
+              </div>
+              <div className="tag-list">
+                {s.tags.map(t => <span key={t} className="tag">{t}</span>)}
+              </div>
+            </div>
+            <button className="btn-secondary" style={{ fontSize:12, padding:'5px 12px', flexShrink:0 }}>View Profile</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WorkflowSection() {
+  return (
+    <div className="workflow-section fade-in">
+      <div className="workflow-title">Innovation Workflow</div>
+      <div className="workflow-track">
+        {WORKFLOW_STEPS.map(step => (
+          <div key={step.id} className={`workflow-step${step.state==='active'?' active-step':step.state==='done'?' done-step':''}`}>
+            <div className="step-circle">
+              <Icon name={step.icon} size={16} color={step.state==='done'?'#fff':step.state==='active'?'#0F9D8A':'#667085'} />
+            </div>
+            <div className="step-label">
+              {step.label.split('\n').map((line,i) => <span key={i} style={{ display:'block' }}>{line}</span>)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ChallengeModal({ challenge, onClose }) {
+  useEffect(() => {
+    const onKey = e => { if (e.key==='Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="modal-overlay" onClick={e => { if (e.target===e.currentTarget) onClose(); }}>
+      <div className="modal-box">
+        <div className="modal-header">
+          <span className="modal-title">{challenge.name}</span>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="X" size={16} /></button>
+        </div>
+        <div className="modal-body">
+          <p style={{ fontSize:13, color:'#667085', marginBottom:16, lineHeight:1.6 }}>{challenge.desc}</p>
+          {[['Department',challenge.dept],['Applications',challenge.apps],['Current Stage',challenge.stage],['Deadline',challenge.deadline]].map(([label,value]) => (
+            <div key={label} className="detail-row">
+              <span className="detail-label">{label}</span>
+              <span className="detail-value">
+                {label==='Current Stage' ? <span className={`badge ${challenge.badge}`}>{value}</span> : value}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onClose}>Close</button>
+          <button className="btn-primary"><Icon name="ExternalLink" size={14} color="#fff" /> Open Full View</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PostChallengeModal({ onClose }) {
+  const [form, setForm] = useState({ title:'', dept:'', deadline:'', desc:'' });
+  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
+  useEffect(() => {
+    const onKey = e => { if (e.key==='Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="modal-overlay" onClick={e => { if (e.target===e.currentTarget) onClose(); }}>
+      <div className="modal-box">
+        <div className="modal-header">
+          <span className="modal-title">Post New Challenge</span>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="X" size={16} /></button>
+        </div>
+        <div className="modal-body">
+          <div className="form-group">
+            <label className="form-label">Challenge Title</label>
+            <input className="form-input" placeholder="e.g. Smart Street Lighting" value={form.title} onChange={set('title')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Department</label>
+            <select className="form-select" value={form.dept} onChange={set('dept')}>
+              <option value="">Select department…</option>
+              {['Sanitation','Transport','Water Authority','Urban Planning','Energy'].map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Application Deadline</label>
+            <input type="date" className="form-input" value={form.deadline} onChange={set('deadline')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Description</label>
+            <textarea className="form-textarea" placeholder="Describe the challenge and expected outcomes…" value={form.desc} onChange={set('desc')} />
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary"><Icon name="Send" size={14} color="#fff" /> Submit Challenge</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DashboardPage() {
+  const [viewChallenge, setViewChallenge] = useState(null);
+  const [postOpen, setPostOpen]           = useState(false);
+  return (
+    <div className="page-content fade-in">
+      <div className="welcome-bar">
+        <div>
+          <h1 style={{ fontSize:20, fontWeight:700, color:'#182230', margin:0 }}>Welcome back, Municipal Corporation</h1>
+          <p style={{ fontSize:13, color:'#667085', marginTop:4, marginBottom:0 }}>Manage challenges, discover suitable startups and track solution performance.</p>
+        </div>
+        <button className="btn-primary" onClick={() => setPostOpen(true)}>
+          <Icon name="Plus" size={15} color="#fff" /> Post New Challenge
+        </button>
+      </div>
+      <SummaryCards />
+      <div className="dashboard-grid">
+        <ChallengesCard onView={setViewChallenge} />
+        <StartupsCard />
+      </div>
+      <WorkflowSection />
+      {viewChallenge && <ChallengeModal challenge={viewChallenge} onClose={() => setViewChallenge(null)} />}
+      {postOpen      && <PostChallengeModal onClose={() => setPostOpen(false)} />}
+    </div>
+  );
+}
+
+function GovInnerPage({ title }) {
+  return (
+    <div className="page-content fade-in" style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:400 }}>
+      <div style={{ textAlign:'center' }}>
+        <div style={{ width:56, height:56, borderRadius:16, background:'#EBF2FF', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
+          <Icon name="Construction" size={24} color="#173C70" />
+        </div>
+        <h2 style={{ fontSize:18, fontWeight:700, color:'#182230', margin:'0 0 8px' }}>{title}</h2>
+        <p style={{ fontSize:13, color:'#667085', margin:0 }}>This section is coming soon.</p>
+      </div>
+    </div>
+  );
+}
+
+const GOV_PAGE_TITLES = {
+  challenges:'My Challenges', post:'Post Challenge', matches:'Startup Matches',
+  proposals:'Proposals', evaluation:'Evaluation', pilot:'Pilot Tracking',
+  performance:'Performance', settings:'Settings',
+};
+
+function GovDashboard({ setPage }) {
+  const [activeNav, setActiveNav]               = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  return (
+    <div className="app-shell">
+      <GovSidebar active={activeNav} onSelect={setActiveNav} collapsed={sidebarCollapsed} onExit={() => setPage('home')} />
+      <div className="main-area">
+        <GovHeader onToggleSidebar={() => setSidebarCollapsed(c => !c)} />
+        {activeNav === 'dashboard'
+          ? <DashboardPage />
+          : <GovInnerPage title={GOV_PAGE_TITLES[activeNav] || activeNav} />
+        }
+      </div>
+    </div>
+  );
+}
+
+// ── Top-level App Router ──────────────────────────────────────────────────────
+function App() {
+  const [page, setPage] = useState('home');
+
+  // Pages that use the full-screen dashboard shell (no public nav/footer)
+  const dashboardPages = ['govDashboard', 'startupDashboard', 'evaluatorDashboard'];
+  const authPages      = ['login', 'register', 'roleSelect'];
+
+  if (page === 'govDashboard')       return <GovDashboard setPage={setPage} />;
+  if (page === 'startupDashboard')   return <StartupDashboard setPage={setPage} />;
+  if (page === 'evaluatorDashboard') return <EvaluatorDashboard setPage={setPage} />;
+  if (page === 'login')              return <LoginPage setPage={setPage} />;
+  if (page === 'register' || page === 'roleSelect') return <RoleSelectPage setPage={setPage} />;
+
+  // Public site pages — wrapped with nav + footer
+  const renderPage = () => {
+    if (page === 'home')       return <HomePage setPage={setPage} />;
+    if (page === 'challenges') return <ChallengesPage setPage={setPage} />;
+    if (page === 'startups')   return <StartupsPage setPage={setPage} />;
+    if (page === 'how')        return <HowItWorksPage setPage={setPage} />;
+    if (page === 'about')      return <AboutPage setPage={setPage} />;
+    return <HomePage setPage={setPage} />;
+  };
+
+  return (
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', background:'#fff' }}>
+      <PublicNav page={page} setPage={setPage} />
+      <div style={{ flex:1 }}>
+        {renderPage()}
+      </div>
+      <PublicFooter setPage={setPage} />
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
