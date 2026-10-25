@@ -1782,7 +1782,7 @@ function GovSidebar({ active, onSelect, collapsed, onExit }) {
       </div>
       <nav className="nav-section">
         {NAV_ITEMS.map(item => (
-          <div key={item.id} className={`nav-item${active===item.id?' active':''}`} onClick={() => onSelect(item.id)} title={collapsed || active === 'proposals' ? item.label : undefined}>
+          <div key={item.id} className={`nav-item${active===item.id?' active':''}`} onClick={() => onSelect(item.id)} title={collapsed || active === 'proposals' || active === 'evaluation' ? item.label : undefined}>
             <Icon name={item.icon} size={16} color={active===item.id ? '#0F9D8A' : 'rgba(255,255,255,0.65)'} />
             <span className="nav-label">{item.label}</span>
           </div>
@@ -2141,6 +2141,23 @@ const INITIAL_GOV_PROPOSALS = [
   { id:704, title:'Permit Intake Automation', startupId:5, challengeId:105, submissionDate:'2026-10-14', status:'Revisions Requested', description:'Digitize document intake and case routing for building permit applications.', solution:'Add document classification, applicant status tracking, and an officer review queue while retaining human approval at each statutory decision point.', technologies:['Document AI','Workflow automation','GovTech'], estimatedBudget:540000, expectedOutcomes:'Reduce manual intake time by 35% and provide applicants with clear status updates at each review stage.' },
   { id:705, title:'Privacy-First Park Incident Detection', startupId:6, challengeId:104, submissionDate:'2026-10-12', status:'Rejected', description:'A limited public-space safety pilot designed around on-device event detection.', solution:'Process video on edge devices and send only event metadata to the incident dashboard, with short retention and role-based access.', technologies:['Edge AI','Computer vision','Incident analytics'], estimatedBudget:395000, expectedOutcomes:'Reduce incident triage time by 20% while avoiding facial recognition and minimizing retained footage.' },
   { id:706, title:'Water Operations Analytics Dashboard', startupId:3, challengeId:102, submissionDate:'2026-10-10', status:'Pending Review', description:'A utility-facing analytics layer for combining sensor and laboratory water-quality data.', solution:'Unify sensor readings and lab results in an operations dashboard with quality checks, trend alerts, and exportable reports.', technologies:['IoT','Analytics','Data visualization'], estimatedBudget:330000, expectedOutcomes:'Cut manual report preparation time by 40% and make sampling gaps visible to operations teams.' },
+];
+
+const EVALUATION_CRITERIA = [
+  { id:'innovation', label:'Innovation and problem fit' },
+  { id:'feasibility', label:'Technical feasibility' },
+  { id:'impact', label:'Public impact and outcomes' },
+  { id:'budget', label:'Value for money' },
+  { id:'readiness', label:'Delivery readiness' },
+];
+
+const INITIAL_GOV_EVALUATIONS = [
+  { proposalId:701, status:'Pending', scores:{}, comments:'', recommendation:'' },
+  { proposalId:702, status:'Completed', scores:{ innovation:4, feasibility:5, impact:4, budget:4, readiness:5 }, comments:'Strong corridor plan with sensible operator controls. Confirm baseline data coverage during kickoff.', recommendation:'Accept' },
+  { proposalId:703, status:'Pending', scores:{}, comments:'', recommendation:'' },
+  { proposalId:704, status:'Flagged', scores:{ innovation:4, feasibility:3, impact:4, budget:3, readiness:3 }, comments:'Please verify the proposed document retention policy and integration responsibilities.', recommendation:'Request Revisions' },
+  { proposalId:705, status:'Completed', scores:{ innovation:3, feasibility:4, impact:3, budget:4, readiness:4 }, comments:'The edge-processing approach is promising; privacy safeguards need to be explicit in the pilot protocol.', recommendation:'Request Revisions' },
+  { proposalId:706, status:'Pending', scores:{}, comments:'', recommendation:'' },
 ];
 
 function matchStatusBadge(status) {
@@ -2807,6 +2824,172 @@ function ProposalsPage({ proposals, setProposals, challenges, onOpenChallenge })
   );
 }
 
+function evaluationStatusBadge(status) {
+  if (status === 'Completed') return 'badge-teal';
+  if (status === 'Flagged') return 'ev-status-flagged';
+  if (status === 'In Progress') return 'badge-blue';
+  return 'badge-amber';
+}
+
+function evaluationScore(evaluation) {
+  const scores = EVALUATION_CRITERIA.map(criterion => Number(evaluation.scores?.[criterion.id])).filter(score => Number.isInteger(score) && score >= 1 && score <= 5);
+  return scores.length ? `${(scores.reduce((total, score) => total + score, 0) / scores.length).toFixed(1)}/5` : '—';
+}
+
+function EvaluationDetailsModal({ proposal, evaluation, startup, challenge, onClose, onEvaluate, onOpenChallenge }) {
+  useEffect(() => {
+    const onKey = event => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="modal-overlay ev-modal" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="ev-detail-title">
+        <div className="modal-header"><span className="modal-title">Evaluation details</span><button className="icon-btn" onClick={onClose} aria-label="Close evaluation details"><Icon name="X" size={16} /></button></div>
+        <div className="modal-body">
+          <div className="ev-detail-heading"><div><h2 id="ev-detail-title">{proposal.title}</h2><span>{startup?.name || 'Startup applicant'} · submitted {formatProposalDate(proposal.submissionDate)}</span></div><span className={`badge ${evaluationStatusBadge(evaluation.status)}`}>{evaluation.status}</span></div>
+          <div className="ev-detail-meta"><span>Related challenge</span>{challenge ? <button className="view-link" onClick={() => onOpenChallenge(challenge.id)}>{challenge.title}<Icon name="ArrowUpRight" size={13} /></button> : <strong>Challenge unavailable</strong>}</div>
+          <section className="ev-detail-section"><h3>Proposal summary</h3><p>{proposal.description}</p><p>{proposal.solution}</p></section>
+          <section className="ev-detail-section"><h3>Evaluation criteria</h3><div className="ev-score-list">{EVALUATION_CRITERIA.map(criterion => <div className="ev-score-row" key={criterion.id}><span>{criterion.label}</span><strong>{evaluation.scores?.[criterion.id] ? `${evaluation.scores[criterion.id]}/5` : 'Not scored'}</strong></div>)}</div><div className="ev-overall-score">Overall score <strong>{evaluationScore(evaluation)}</strong></div></section>
+          <section className="ev-detail-section"><h3>Reviewer comments</h3><p>{evaluation.comments || 'No reviewer comments saved yet.'}</p></section>
+          <section className="ev-detail-section"><h3>Final recommendation</h3><p>{evaluation.recommendation || 'Not submitted'}</p></section>
+          <section className="ev-startup-summary"><div className="startup-avatar" style={{ background:startup?.color || '#173C70' }}>{startup?.initials || 'ST'}</div><div><strong>{startup?.name || 'Startup applicant'}</strong><span>{startup?.domain || 'Startup profile'}</span></div></section>
+        </div>
+        <div className="modal-footer"><button className="btn-secondary" onClick={onClose}>Close</button><button className="btn-primary" onClick={() => onEvaluate(proposal, evaluation)}><Icon name="ClipboardCheck" size={14} color="#fff" /> Open Evaluation</button></div>
+      </div>
+    </div>
+  );
+}
+
+function EvaluationEditorModal({ proposal, evaluation, onClose, onSave }) {
+  const [scores, setScores] = useState(() => ({ ...(evaluation.scores || {}) }));
+  const [comments, setComments] = useState(evaluation.comments || '');
+  const [recommendation, setRecommendation] = useState(evaluation.recommendation || '');
+  const [flagged, setFlagged] = useState(evaluation.status === 'Flagged');
+  const [errors, setErrors] = useState({});
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => {
+    const onKey = event => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  function saveDraft() {
+    if (!EVALUATION_CRITERIA.some(criterion => scores[criterion.id])) {
+      setErrors({ draft:'Enter at least one criterion score before saving a draft.' });
+      return;
+    }
+    onSave(proposal.id, { scores, comments:comments.trim(), recommendation, status:flagged ? 'Flagged' : 'In Progress' }, false);
+  }
+
+  function beginSubmission(event) {
+    event.preventDefault();
+    const nextErrors = {};
+    EVALUATION_CRITERIA.forEach(criterion => {
+      if (!scores[criterion.id]) nextErrors[criterion.id] = 'Select a score from 1 to 5.';
+    });
+    if (comments.trim().length < 20) nextErrors.comments = 'Add at least 20 characters of reviewer comments.';
+    if (!recommendation) nextErrors.recommendation = 'Select a final recommendation.';
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+    setConfirming(true);
+  }
+
+  function confirmSubmission() {
+    onSave(proposal.id, { scores, comments:comments.trim(), recommendation, status:'Completed' }, true);
+  }
+
+  return (
+    <div className="modal-overlay ev-modal" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="ev-editor-title">
+        {confirming ? (
+          <>
+            <div className="modal-header"><span className="modal-title" id="ev-editor-title">Confirm final evaluation</span><button className="icon-btn" onClick={onClose} aria-label="Close confirmation"><Icon name="X" size={16} /></button></div>
+            <div className="modal-body"><p className="ev-confirm-text">Submit the evaluation for <strong>{proposal.title}</strong> with the recommendation <strong>{recommendation}</strong>?</p><p className="sm-demo-note">This finalizes the evaluation in this frontend demo session only.</p></div>
+            <div className="modal-footer"><button className="btn-secondary" onClick={() => setConfirming(false)}>Back to Evaluation</button><button className="btn-primary" onClick={confirmSubmission}><Icon name="Check" size={14} color="#fff" /> Confirm Submission</button></div>
+          </>
+        ) : (
+          <form onSubmit={beginSubmission} noValidate>
+            <div className="modal-header"><div><span className="modal-title" id="ev-editor-title">Evaluate Proposal</span><span className="ev-editor-subtitle">{proposal.title}</span></div><button type="button" className="icon-btn" onClick={onClose} aria-label="Close evaluation editor"><Icon name="X" size={16} /></button></div>
+            <div className="modal-body">
+              <p className="ev-score-instruction">Rate each criterion from 1 (needs work) to 5 (excellent).</p>
+              <div className="ev-criteria-list">{EVALUATION_CRITERIA.map(criterion => <div className="ev-criterion" key={criterion.id}><label className="form-label" htmlFor={`ev-score-${criterion.id}`}>{criterion.label}</label><select id={`ev-score-${criterion.id}`} className={`form-select${errors[criterion.id] ? ' mc-input-error' : ''}`} value={scores[criterion.id] || ''} onChange={event => { setScores(previous => ({ ...previous, [criterion.id]:event.target.value ? Number(event.target.value) : '' })); setErrors(previous => ({ ...previous, [criterion.id]:'', draft:'' })); }}><option value="">Select score</option>{[1,2,3,4,5].map(score => <option value={score} key={score}>{score} / 5</option>)}</select>{errors[criterion.id] && <span className="mc-field-error" role="alert">{errors[criterion.id]}</span>}</div>)}</div>
+              <div className="form-group"><label className="form-label" htmlFor="ev-comments">Reviewer comments</label><textarea id="ev-comments" className={`form-textarea${errors.comments ? ' mc-input-error' : ''}`} value={comments} onChange={event => { setComments(event.target.value); setErrors(previous => ({ ...previous, comments:'' })); }} maxLength={1000} placeholder="Summarize strengths, risks, and any clarification needed…" /><div className="ev-character-count">{comments.length}/1000</div>{errors.comments && <div className="mc-field-error" role="alert">{errors.comments}</div>}</div>
+              <div className="form-group"><label className="form-label" htmlFor="ev-recommendation">Final recommendation</label><select id="ev-recommendation" className={`form-select${errors.recommendation ? ' mc-input-error' : ''}`} value={recommendation} onChange={event => { setRecommendation(event.target.value); setErrors(previous => ({ ...previous, recommendation:'' })); }}><option value="">Select recommendation</option>{['Accept','Request Revisions','Reject'].map(option => <option key={option} value={option}>{option}</option>)}</select>{errors.recommendation && <div className="mc-field-error" role="alert">{errors.recommendation}</div>}</div>
+              <label className="ev-flag-option"><input type="checkbox" checked={flagged} onChange={event => setFlagged(event.target.checked)} /><span>Flag for additional review</span></label>
+              {errors.draft && <div className="mc-field-error" role="alert">{errors.draft}</div>}
+              <p className="sm-demo-note">Scores and comments are held in the current frontend session only.</p>
+            </div>
+            <div className="modal-footer ev-editor-footer"><button type="button" className="btn-secondary" onClick={saveDraft}>Save Draft</button><button type="submit" className="btn-primary"><Icon name="Send" size={14} color="#fff" /> Submit Evaluation</button></div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EvaluationPage({ proposals, evaluations, setEvaluations, startups, challenges, onOpenChallenge }) {
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [challengeFilter, setChallengeFilter] = useState('All');
+  const [dialog, setDialog] = useState(null);
+  const [notice, setNotice] = useState('');
+  const proposalById = id => proposals.find(proposal => proposal.id === id);
+  const startupById = id => startups.find(startup => startup.id === id);
+  const challengeById = id => challenges.find(challenge => challenge.id === id);
+  const challengeOptions = [...new Map(proposals.map(proposal => {
+    const challenge = challengeById(proposal.challengeId);
+    return challenge ? [challenge.id, challenge.title] : null;
+  }).filter(Boolean))];
+  const rows = evaluations.map(evaluation => ({ evaluation, proposal:proposalById(evaluation.proposalId) })).filter(row => row.proposal);
+  const filtered = rows.filter(({ evaluation, proposal }) => {
+    const startup = startupById(proposal.startupId);
+    const challenge = challengeById(proposal.challengeId);
+    const term = search.trim().toLowerCase();
+    const text = `${startup?.name || proposal.startupName || ''} ${challenge?.title || ''} ${proposal.title}`.toLowerCase();
+    return (!term || text.includes(term))
+      && (statusFilter === 'All' || evaluation.status === statusFilter)
+      && (challengeFilter === 'All' || String(proposal.challengeId) === challengeFilter);
+  });
+  const summaries = [
+    { label:'Total Evaluations', value:rows.length, icon:'ClipboardCheck', bg:'#EBF2FF', color:'#173C70' },
+    { label:'Pending', value:rows.filter(row => ['Pending','In Progress'].includes(row.evaluation.status)).length, icon:'Clock3', bg:'#FFF4E5', color:'#b45309' },
+    { label:'Completed', value:rows.filter(row => row.evaluation.status === 'Completed').length, icon:'CheckCircle', bg:'#E6F7F5', color:'#0F9D8A' },
+    { label:'Flagged', value:rows.filter(row => row.evaluation.status === 'Flagged').length, icon:'Flag', bg:'#FEE4E2', color:'#b42318' },
+  ];
+
+  function saveEvaluation(proposalId, update, final) {
+    setEvaluations(previous => previous.map(evaluation => evaluation.proposalId === proposalId ? { ...evaluation, ...update } : evaluation));
+    const proposal = proposalById(proposalId);
+    setNotice(final ? `Evaluation submitted for ${proposal?.title || 'proposal'}.` : `Evaluation draft saved for ${proposal?.title || 'proposal'}.`);
+    setDialog(null);
+  }
+
+  function resetFilters() {
+    setSearch('');
+    setStatusFilter('All');
+    setChallengeFilter('All');
+  }
+
+  return (
+    <div className="page-content evaluation-page">
+      <div className="welcome-bar"><div><h1 className="mc-page-title">Evaluation</h1><p className="mc-page-subtitle">Score startup proposals against consistent criteria and record a clear recommendation.</p></div></div>
+      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}<span className="ev-demo-caption">Demo session only.</span></div>}
+
+      <div className="summary-grid ev-summary-grid">{summaries.map(card => <div key={card.label} className="summary-card"><div className="summary-icon" style={{ background:card.bg }}><Icon name={card.icon} size={20} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}</div>
+
+      <section className="card ev-list-card">
+        <div className="card-header ev-list-header"><div><div className="card-title">Submissions for Evaluation</div><div className="mc-result-count">Showing {filtered.length} of {rows.length} evaluations</div></div><div className="ev-toolbar"><div className="search-wrap ev-search"><span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span><input type="search" aria-label="Search startup or challenge" placeholder="Search startup or challenge…" value={search} onChange={event => setSearch(event.target.value)} /></div><select className="form-select ev-filter" aria-label="Filter evaluations by status" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="All">All statuses</option>{['Pending','In Progress','Completed','Flagged'].map(status => <option value={status} key={status}>{status}</option>)}</select><select className="form-select ev-filter" aria-label="Filter evaluations by challenge" value={challengeFilter} onChange={event => setChallengeFilter(event.target.value)}><option value="All">All challenges</option>{challengeOptions.map(([id,title]) => <option value={id} key={id}>{title}</option>)}</select></div></div>
+        {filtered.length ? <div className="table-wrap ev-table-wrap"><table className="ev-table"><thead><tr>{['Startup','Related challenge','Submitted','Evaluation status','Score','Actions'].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{filtered.map(({ evaluation, proposal }) => {const startup = startupById(proposal.startupId); const challenge = challengeById(proposal.challengeId);return <tr key={proposal.id}><td className="ev-startup-cell" data-label="Startup"><span className="ev-startup-name"><span className="startup-avatar" style={{ background:startup?.color || '#173C70' }}>{startup?.initials || 'ST'}</span>{startup?.name || proposal.startupName}</span></td><td data-label="Related challenge">{challenge?.title || 'Challenge unavailable'}</td><td data-label="Submitted">{formatProposalDate(proposal.submissionDate)}</td><td data-label="Evaluation status"><span className={`badge ${evaluationStatusBadge(evaluation.status)}`}>{evaluation.status}</span></td><td data-label="Score" className="ev-score-cell">{evaluationScore(evaluation)}</td><td className="ev-actions-cell" data-label="Actions"><div className="ev-row-actions"><button className="btn-secondary ev-action-btn" onClick={() => setDialog({ type:'details', proposal, evaluation })}><Icon name="Eye" size={14} /> Details</button><button className="btn-primary ev-action-btn" onClick={() => setDialog({ type:'edit', proposal, evaluation })}><Icon name="ClipboardCheck" size={14} color="#fff" /> Evaluate</button></div></td></tr>;})}</tbody></table></div> : <div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="SearchX" size={22} color="#173C70" /></div><h2>No evaluations found</h2><p>Try another startup, challenge, or status filter.</p><button className="btn-secondary" onClick={resetFilters}>Clear filters</button></div>}
+      </section>
+
+      {dialog?.type === 'details' && <EvaluationDetailsModal proposal={dialog.proposal} evaluation={dialog.evaluation} startup={startupById(dialog.proposal.startupId)} challenge={challengeById(dialog.proposal.challengeId)} onClose={() => setDialog(null)} onEvaluate={(proposal, evaluation) => setDialog({ type:'edit', proposal, evaluation })} onOpenChallenge={id => { setDialog(null); onOpenChallenge(id); }} />}
+      {dialog?.type === 'edit' && <EvaluationEditorModal key={dialog.proposal.id} proposal={dialog.proposal} evaluation={dialog.evaluation} onClose={() => setDialog(null)} onSave={saveEvaluation} />}
+    </div>
+  );
+}
+
 function PostChallengePage({ onCreate, onCancel, onViewChallenges }) {
   const [form, setForm] = useState({
     title:'', description:'', department:'', category:'', technologies:'',
@@ -3000,6 +3183,7 @@ function GovDashboard({ setPage }) {
   const [govChallenges, setGovChallenges]       = useState(INITIAL_GOV_CHALLENGES);
   const [govMatches, setGovMatches]             = useState(INITIAL_GOV_MATCHES);
   const [govProposals, setGovProposals]         = useState(INITIAL_GOV_PROPOSALS);
+  const [govEvaluations, setGovEvaluations]     = useState(INITIAL_GOV_EVALUATIONS);
   const [challengeSearchSeed, setChallengeSearchSeed] = useState('');
 
   function openRelatedChallenge(challengeId) {
@@ -3009,7 +3193,7 @@ function GovDashboard({ setPage }) {
   }
 
   return (
-    <div className={`app-shell${activeNav === 'proposals' ? ' proposals-shell' : ''}`}>
+    <div className={`app-shell${activeNav === 'proposals' ? ' proposals-shell' : activeNav === 'evaluation' ? ' evaluation-shell' : ''}`}>
       <GovSidebar active={activeNav} onSelect={id => { if (id === 'challenges') setChallengeSearchSeed(''); setActiveNav(id); }} collapsed={sidebarCollapsed} onExit={() => setPage('home')} />
       <div className="main-area">
         <GovHeader onToggleSidebar={() => setSidebarCollapsed(c => !c)} />
@@ -3021,6 +3205,8 @@ function GovDashboard({ setPage }) {
               ? <StartupMatchesPage matches={govMatches} setMatches={setGovMatches} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} />
               : activeNav === 'proposals'
                 ? <ProposalsPage proposals={govProposals} setProposals={setGovProposals} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} />
+              : activeNav === 'evaluation'
+                ? <EvaluationPage proposals={govProposals} evaluations={govEvaluations} setEvaluations={setGovEvaluations} startups={govMatches} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} />
             : activeNav === 'post'
               ? <PostChallengePage
                   onCreate={challenge => setGovChallenges(previous => [{ ...challenge, id:Date.now() }, ...previous])}
