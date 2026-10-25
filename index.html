@@ -1782,7 +1782,7 @@ function GovSidebar({ active, onSelect, collapsed, onExit }) {
       </div>
       <nav className="nav-section">
         {NAV_ITEMS.map(item => (
-          <div key={item.id} className={`nav-item${active===item.id?' active':''}`} onClick={() => onSelect(item.id)} title={collapsed || ['proposals','evaluation','pilot','performance'].includes(active) ? item.label : undefined}>
+          <div key={item.id} className={`nav-item${active===item.id?' active':''}`} onClick={() => onSelect(item.id)} title={collapsed || ['proposals','evaluation','pilot','performance','settings'].includes(active) ? item.label : undefined}>
             <Icon name={item.icon} size={16} color={active===item.id ? '#0F9D8A' : 'rgba(255,255,255,0.65)'} />
             <span className="nav-label">{item.label}</span>
           </div>
@@ -1798,9 +1798,11 @@ function GovSidebar({ active, onSelect, collapsed, onExit }) {
   );
 }
 
-function GovHeader({ onToggleSidebar }) {
+function GovHeader({ onToggleSidebar, profile }) {
   const [notifOpen, setNotifOpen]     = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const departmentName = profile?.displayName || 'Municipal Corporation';
+  const departmentInitials = departmentName.split(/\s+/).filter(Boolean).slice(0,2).map(word => word[0]).join('').toUpperCase();
   const notifRef   = useRef(null);
   const profileRef = useRef(null);
   useEffect(() => {
@@ -1846,18 +1848,18 @@ function GovHeader({ onToggleSidebar }) {
       </div>
       <div className="dropdown-wrap" ref={profileRef}>
         <div style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding:'4px 8px', borderRadius:8 }} onClick={() => { setProfileOpen(o=>!o); setNotifOpen(false); }}>
-          <div className="avatar">MC</div>
+          <div className="avatar">{departmentInitials || 'MC'}</div>
           <div>
-            <div style={{ fontSize:12, fontWeight:600, color:'#182230', lineHeight:'1.3' }}>Municipal Corp.</div>
-            <div style={{ fontSize:11, color:'#667085' }}>Government</div>
+            <div style={{ fontSize:12, fontWeight:600, color:'#182230', lineHeight:'1.3' }}>{departmentName.length > 18 ? `${departmentName.slice(0,17)}…` : departmentName}</div>
+            <div style={{ fontSize:11, color:'#667085' }}>{profile?.departmentType || 'Government'}</div>
           </div>
           <Icon name="ChevronDown" size={14} color="#667085" />
         </div>
         {profileOpen && (
           <div className="dropdown-menu">
             <div style={{ padding:'12px 16px', borderBottom:'1px solid #E5EAF1' }}>
-              <div style={{ fontSize:14, fontWeight:600 }}>Municipal Corporation</div>
-              <div style={{ fontSize:12, color:'#667085', marginTop:2 }}>admin@municipal.gov</div>
+              <div style={{ fontSize:14, fontWeight:600 }}>{profile?.departmentName || 'Municipal Corporation'}</div>
+              <div style={{ fontSize:12, color:'#667085', marginTop:2 }}>{profile?.email || 'admin@municipal.gov'}</div>
             </div>
             {[['User','My Profile'],['Settings','Settings'],['HelpCircle','Help & Support']].map(([icon,label]) => (
               <div key={label} className="dropdown-item">
@@ -2168,6 +2170,19 @@ const INITIAL_GOV_PILOTS = [
   { id:905, name:'Digital Permit Workflow Pilot', challengeId:105, startupId:5, department:'Urban Planning', startDate:'2026-08-15', endDate:'2026-11-30', status:'Delayed', progress:64, objectives:'Test digital permit intake and case routing with a limited set of building applications.', milestones:[{ id:'mapping', title:'Map current permit intake steps', dueDate:'2026-08-30', status:'Completed' },{ id:'workflow', title:'Configure officer review workflow', dueDate:'2026-09-30', status:'Completed' },{ id:'training', title:'Train permit review officers', dueDate:'2026-10-20', status:'Delayed' },{ id:'launch', title:'Launch applicant pilot cohort', dueDate:'2026-11-30', status:'Planned' }], notes:'Officer training moved due to schedule conflicts; launch remains pending the new training date.' },
   { id:906, name:'Utility Data Dashboard Trial', challengeId:102, startupId:3, department:'Water Authority', startDate:'2026-10-05', endDate:'2027-01-20', status:'In Progress', progress:26, objectives:'Combine live sensor readings with laboratory results for daily utility operations.', milestones:[{ id:'schema', title:'Map sensor and lab data schemas', dueDate:'2026-10-18', status:'Completed' },{ id:'connector', title:'Build and validate data connector', dueDate:'2026-11-15', status:'In Progress' },{ id:'dashboard', title:'Review dashboard with operations staff', dueDate:'2026-12-15', status:'Planned' }], notes:'Data mapping approved. One laboratory export format still needs a sample file.' },
 ];
+
+const INITIAL_GOV_SETTINGS = {
+  departmentName:'Municipal Corporation',
+  officerName:'Municipal Officer',
+  designation:'Department Administrator',
+  email:'admin@municipal.gov',
+  contact:'',
+  displayName:'Municipal Corporation',
+  departmentType:'Municipal Corporation',
+  location:'',
+  notifications:{ proposals:true, evaluations:true, pilots:true, challenges:true },
+  density:'comfortable',
+};
 
 function matchStatusBadge(status) {
   if (status === 'Pending Review') return 'badge-amber';
@@ -3289,6 +3304,86 @@ function PerformancePage({ challenges, matches, proposals, evaluations, pilots, 
   );
 }
 
+function SettingsPage({ settings, onSave, onReset, onDensityChange }) {
+  const [form, setForm] = useState(() => ({ ...settings, notifications:{ ...settings.notifications } }));
+  const [errors, setErrors] = useState({});
+  const [notice, setNotice] = useState('');
+  const [resetOpen, setResetOpen] = useState(false);
+  const update = key => event => { const value=event.target.value; setForm(previous=>({...previous,[key]:value})); setErrors(previous=>({...previous,[key]:''})); setNotice(''); };
+
+  function toggleNotification(key) {
+    setForm(previous => ({ ...previous, notifications:{ ...previous.notifications, [key]:!previous.notifications[key] } }));
+    setNotice('');
+  }
+
+  function save(event) {
+    event.preventDefault();
+    const nextErrors = {
+      departmentName:form.departmentName.trim() ? '' : 'Enter a department name.',
+      officerName:form.officerName.trim() ? '' : 'Enter the officer name.',
+      designation:form.designation.trim() ? '' : 'Enter a designation.',
+      email:!form.email.trim() ? 'Enter an email address.' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) ? 'Enter a valid email address.' : '',
+      contact:form.contact && !/^[+\d][\d\s().-]{6,19}$/.test(form.contact.trim()) ? 'Enter a valid phone number or leave this field blank.' : '',
+      displayName:form.displayName.trim() ? '' : 'Enter a department display name.',
+      departmentType:form.departmentType ? '' : 'Select a department type.',
+      location:form.location.length > 100 ? 'Keep the location to 100 characters or fewer.' : '',
+    };
+    setErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) return;
+    const saved = { ...form, departmentName:form.departmentName.trim(), officerName:form.officerName.trim(), designation:form.designation.trim(), email:form.email.trim(), contact:form.contact.trim(), displayName:form.displayName.trim(), location:form.location.trim(), notifications:{ ...form.notifications } };
+    onSave(saved);
+    setForm(saved);
+    setNotice('Settings updated in this demo session.');
+  }
+
+  function confirmReset() {
+    const defaults = { ...INITIAL_GOV_SETTINGS, notifications:{ ...INITIAL_GOV_SETTINGS.notifications } };
+    setForm(defaults);
+    setErrors({});
+    onReset(defaults);
+    setNotice('Demo settings restored to defaults for this session.');
+    setResetOpen(false);
+  }
+
+  return (
+    <div className={`page-content settings-page density-${form.density}`}>
+      <div className="welcome-bar"><div><h1 className="mc-page-title">Settings</h1><p className="mc-page-subtitle">Manage your government profile and dashboard preferences for this demo session.</p></div><span className="badge badge-blue">Session only</span></div>
+      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}</div>}
+      <form className="settings-form" onSubmit={save} noValidate>
+        <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon"><Icon name="UserRound" size={17} color="#173C70" /></div><div><h2>Government profile</h2><p>Contact details associated with this demo department.</p></div></div>
+          <div className="settings-grid">
+            <div className="form-group"><label className="form-label" htmlFor="settings-department">Department name</label><input id="settings-department" className={`form-input${errors.departmentName?' mc-input-error':''}`} value={form.departmentName} onChange={update('departmentName')} maxLength={100} aria-invalid={!!errors.departmentName} />{errors.departmentName&&<span className="mc-field-error" role="alert">{errors.departmentName}</span>}</div>
+            <div className="form-group"><label className="form-label" htmlFor="settings-officer">Officer name</label><input id="settings-officer" className={`form-input${errors.officerName?' mc-input-error':''}`} value={form.officerName} onChange={update('officerName')} maxLength={80} aria-invalid={!!errors.officerName} />{errors.officerName&&<span className="mc-field-error" role="alert">{errors.officerName}</span>}</div>
+            <div className="form-group"><label className="form-label" htmlFor="settings-designation">Designation</label><input id="settings-designation" className={`form-input${errors.designation?' mc-input-error':''}`} value={form.designation} onChange={update('designation')} maxLength={80} aria-invalid={!!errors.designation} />{errors.designation&&<span className="mc-field-error" role="alert">{errors.designation}</span>}</div>
+            <div className="form-group"><label className="form-label" htmlFor="settings-email">Work email</label><input id="settings-email" type="email" className={`form-input${errors.email?' mc-input-error':''}`} value={form.email} onChange={update('email')} autoComplete="email" aria-invalid={!!errors.email} />{errors.email&&<span className="mc-field-error" role="alert">{errors.email}</span>}</div>
+            <div className="form-group"><label className="form-label" htmlFor="settings-contact">Contact number <span className="settings-optional">Optional</span></label><input id="settings-contact" type="tel" className={`form-input${errors.contact?' mc-input-error':''}`} value={form.contact} onChange={update('contact')} autoComplete="tel" placeholder="Add a department contact number" aria-invalid={!!errors.contact} />{errors.contact&&<span className="mc-field-error" role="alert">{errors.contact}</span>}</div>
+          </div>
+        </section>
+
+        <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon"><Icon name="Building2" size={17} color="#0F9D8A" /></div><div><h2>Organization</h2><p>Set the name and location displayed in the department workspace.</p></div></div>
+          <div className="settings-grid">
+            <div className="form-group"><label className="form-label" htmlFor="settings-display-name">Department display name</label><input id="settings-display-name" className={`form-input${errors.displayName?' mc-input-error':''}`} value={form.displayName} onChange={update('displayName')} maxLength={100} aria-invalid={!!errors.displayName} />{errors.displayName&&<span className="mc-field-error" role="alert">{errors.displayName}</span>}</div>
+            <div className="form-group"><label className="form-label" htmlFor="settings-type">Department type</label><select id="settings-type" className={`form-select${errors.departmentType?' mc-input-error':''}`} value={form.departmentType} onChange={update('departmentType')} aria-invalid={!!errors.departmentType}><option value="">Select department type</option>{['Municipal Corporation','City Department','State Department','Water Authority','Transport Authority','Other'].map(type=><option key={type}>{type}</option>)}</select>{errors.departmentType&&<span className="mc-field-error" role="alert">{errors.departmentType}</span>}</div>
+            <div className="form-group settings-full"><label className="form-label" htmlFor="settings-location">Office location <span className="settings-optional">Optional</span></label><input id="settings-location" className={`form-input${errors.location?' mc-input-error':''}`} value={form.location} onChange={update('location')} maxLength={100} placeholder="City, state" aria-invalid={!!errors.location} />{errors.location&&<span className="mc-field-error" role="alert">{errors.location}</span>}</div>
+          </div>
+        </section>
+
+        <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon settings-icon-amber"><Icon name="BellRing" size={17} color="#b45309" /></div><div><h2>Notification preferences</h2><p>Choose which demo activity appears in your notification preferences.</p></div></div>
+          <div className="settings-options">{[['proposals','Proposal submissions','When a startup submits a proposal to a challenge.'],['evaluations','Evaluation updates','When a proposal receives an evaluation decision.'],['pilots','Pilot milestones','When a pilot milestone is updated or completed.'],['challenges','Challenge activity','When a challenge receives a new application or status update.']].map(([key,label,description])=><label className="settings-option" key={key}><span><strong>{label}</strong><small>{description}</small></span><input type="checkbox" checked={form.notifications[key]} onChange={()=>toggleNotification(key)} aria-label={label} /></label>)}</div>
+        </section>
+
+        <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon"><Icon name="SlidersHorizontal" size={17} color="#173C70" /></div><div><h2>Display preferences</h2><p>Choose the spacing used on supported dashboard lists.</p></div></div>
+          <fieldset className="settings-density"><legend>Content density</legend><div className="settings-segment" role="radiogroup" aria-label="Content density">{[['comfortable','Comfortable'],['compact','Compact']].map(([value,label])=><button key={value} type="button" role="radio" aria-checked={form.density===value} className={form.density===value?'is-selected':''} onClick={()=>{setForm(previous=>({...previous,density:value}));onDensityChange(value);setNotice('');}}>{label}</button>)}</div></fieldset>
+        </section>
+
+        <div className="settings-footer"><button type="button" className="btn-secondary" onClick={()=>setResetOpen(true)}><Icon name="RotateCcw" size={14} /> Reset to Defaults</button><button type="submit" className="btn-primary"><Icon name="Save" size={14} color="#fff" /> Save Settings</button></div>
+      </form>
+      {resetOpen&&<div className="modal-overlay settings-modal" onClick={event=>{if(event.target===event.currentTarget)setResetOpen(false);}}><div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="settings-reset-title"><div className="modal-header"><span className="modal-title" id="settings-reset-title">Reset settings?</span><button className="icon-btn" onClick={()=>setResetOpen(false)} aria-label="Close reset confirmation"><Icon name="X" size={16} /></button></div><div className="modal-body"><p className="settings-reset-copy">This restores the demo profile and preferences to their defaults for this session.</p></div><div className="modal-footer"><button className="btn-secondary" onClick={()=>setResetOpen(false)}>Keep Settings</button><button className="settings-reset-confirm" onClick={confirmReset}><Icon name="RotateCcw" size={14} /> Reset Settings</button></div></div></div>}
+      <p className="settings-session-note">Settings are held in React state for this session and are not saved to an account or server.</p>
+    </div>
+  );
+}
+
 function PostChallengePage({ onCreate, onCancel, onViewChallenges }) {
   const [form, setForm] = useState({
     title:'', description:'', department:'', category:'', technologies:'',
@@ -3484,7 +3579,19 @@ function GovDashboard({ setPage }) {
   const [govProposals, setGovProposals]         = useState(INITIAL_GOV_PROPOSALS);
   const [govEvaluations, setGovEvaluations]     = useState(INITIAL_GOV_EVALUATIONS);
   const [govPilots, setGovPilots]               = useState(INITIAL_GOV_PILOTS);
+  const [govSettings, setGovSettings]           = useState(() => ({ ...INITIAL_GOV_SETTINGS, notifications:{ ...INITIAL_GOV_SETTINGS.notifications } }));
+  const [displayDensity, setDisplayDensity]     = useState(INITIAL_GOV_SETTINGS.density);
   const [challengeSearchSeed, setChallengeSearchSeed] = useState('');
+
+  function saveGovSettings(settings) {
+    setGovSettings(settings);
+    setDisplayDensity(settings.density);
+  }
+
+  function changeDisplayDensity(density) {
+    setDisplayDensity(density);
+    setGovSettings(previous => ({ ...previous, density }));
+  }
 
   function openRelatedChallenge(challengeId) {
     const challenge = govChallenges.find(item => item.id === challengeId);
@@ -3493,10 +3600,10 @@ function GovDashboard({ setPage }) {
   }
 
   return (
-    <div className={`app-shell${activeNav === 'proposals' ? ' proposals-shell' : activeNav === 'evaluation' ? ' evaluation-shell' : activeNav === 'pilot' ? ' pilot-shell' : activeNav === 'performance' ? ' performance-shell' : ''}`}>
+    <div className={`app-shell${activeNav === 'proposals' ? ' proposals-shell' : activeNav === 'evaluation' ? ' evaluation-shell' : activeNav === 'pilot' ? ' pilot-shell' : activeNav === 'performance' ? ' performance-shell' : activeNav === 'settings' ? ' settings-shell' : ''}${displayDensity === 'compact' ? ' density-compact' : ''}`}>
       <GovSidebar active={activeNav} onSelect={id => { if (id === 'challenges') setChallengeSearchSeed(''); setActiveNav(id); }} collapsed={sidebarCollapsed} onExit={() => setPage('home')} />
       <div className="main-area">
-        <GovHeader onToggleSidebar={() => setSidebarCollapsed(c => !c)} />
+        <GovHeader onToggleSidebar={() => setSidebarCollapsed(c => !c)} profile={govSettings} />
         {activeNav === 'dashboard'
           ? <DashboardPage />
           : activeNav === 'challenges'
@@ -3511,6 +3618,8 @@ function GovDashboard({ setPage }) {
                 ? <PilotTrackingPage pilots={govPilots} setPilots={setGovPilots} challenges={govChallenges} startups={govMatches} onOpenChallenge={openRelatedChallenge} />
               : activeNav === 'performance'
                 ? <PerformancePage challenges={govChallenges} matches={govMatches} proposals={govProposals} evaluations={govEvaluations} pilots={govPilots} onOpenChallenge={openRelatedChallenge} />
+              : activeNav === 'settings'
+                ? <SettingsPage settings={govSettings} onSave={saveGovSettings} onReset={saveGovSettings} onDensityChange={changeDisplayDensity} />
             : activeNav === 'post'
               ? <PostChallengePage
                   onCreate={challenge => setGovChallenges(previous => [{ ...challenge, id:Date.now() }, ...previous])}
