@@ -1782,7 +1782,7 @@ function GovSidebar({ active, onSelect, collapsed, onExit }) {
       </div>
       <nav className="nav-section">
         {NAV_ITEMS.map(item => (
-          <div key={item.id} className={`nav-item${active===item.id?' active':''}`} onClick={() => onSelect(item.id)} title={collapsed ? item.label : undefined}>
+          <div key={item.id} className={`nav-item${active===item.id?' active':''}`} onClick={() => onSelect(item.id)} title={collapsed || active === 'proposals' ? item.label : undefined}>
             <Icon name={item.icon} size={16} color={active===item.id ? '#0F9D8A' : 'rgba(255,255,255,0.65)'} />
             <span className="nav-label">{item.label}</span>
           </div>
@@ -2121,6 +2121,41 @@ function formatChallengeDeadline(value) {
   return new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
 }
 
+const STARTUP_MATCH_PROFILES = {
+  1: { matchScore:92, domain:'Smart Cities', status:'Pending Review', challengeId:101, description:'AI-enabled waste operations with route optimization and connected collection systems.', capabilities:['Route optimization','IoT fleet monitoring','Operations analytics'], experience:'Deployed a route-planning pilot across 180 collection vehicles, reducing repeat trips by 17%.', rationale:'Strong fit for the challenge\'s IoT and routing needs, with relevant municipal operations experience.' },
+  2: { matchScore:88, domain:'Transport', status:'Proposal Submitted', challengeId:103, description:'Computer-vision and cloud tools for safer, more responsive urban mobility.', capabilities:['Traffic video analytics','Adaptive signal control','Cloud data platform'], experience:'Supported two city traffic studies and integrated signal data from more than 60 junctions.', rationale:'Relevant traffic analytics and signal integration align closely with the department\'s congestion targets.' },
+  3: { matchScore:84, domain:'Energy', status:'Pending Review', challengeId:105, description:'Connected energy monitoring and analytics for resilient public infrastructure.', capabilities:['IoT metering','Load forecasting','Energy dashboards'], experience:'Built an energy monitoring pilot for 24 public facilities with near-real-time load reporting.', rationale:'Good technology fit for civic infrastructure and measurable energy outcomes.' },
+};
+
+const INITIAL_GOV_MATCHES = [
+  ...STARTUPS.map(startup => ({ ...startup, ...STARTUP_MATCH_PROFILES[startup.id], technologies:startup.tags })),
+  { id:4, name:'AquaSense Tech', initials:'AS', color:'#0F9D8A', matchScore:81, domain:'Environment', status:'Reviewed', challengeId:102, description:'Sensor networks and analytics for water-quality monitoring.', technologies:['IoT','Water Sensors','Analytics'], capabilities:['Water-quality sensors','Contamination alerts','Field calibration'], experience:'Monitored water quality at 35 sampling points during a regional utility pilot.', rationale:'Strong environmental domain fit and direct experience with distributed water sensors.' },
+  { id:5, name:'CivicFlow Systems', initials:'CF', color:'#b45309', matchScore:78, domain:'GovTech', status:'Shortlisted', challengeId:105, description:'Digital workflow tools for public-sector services and approvals.', technologies:['Automation','Document AI','GovTech'], capabilities:['Workflow automation','Document processing','Case management'], experience:'Digitized permit intake for a mid-sized municipality and reduced manual triage time by 32%.', rationale:'Relevant public-sector workflow experience; shortlist for a closer review of integration approach.' },
+  { id:6, name:'SafeCity AI', initials:'SC', color:'#0369a1', matchScore:72, domain:'Public Safety', status:'Pending Review', challengeId:104, description:'Computer-vision tools for public-space safety monitoring and incident response.', technologies:['Computer Vision','Edge AI','Incident Analytics'], capabilities:['Video analytics','Edge deployment','Incident dashboards'], experience:'Completed a 12-site public-space safety proof of concept with privacy-preserving edge processing.', rationale:'Useful public-space experience; verify privacy controls and operating assumptions during review.' },
+];
+
+const INITIAL_GOV_PROPOSALS = [
+  { id:701, title:'AI-Enabled Waste Route Optimization', startupId:1, challengeId:101, submissionDate:'2026-10-19', status:'Pending Review', description:'A phased proposal to modernize municipal waste collection across high-volume districts.', solution:'Combine route optimization with vehicle telemetry and daily demand forecasts. Begin with a 12-week pilot across three wards before expanding city-wide.', technologies:['Route optimization','IoT','Data analytics'], estimatedBudget:485000, expectedOutcomes:'Reduce repeat trips by 15%, improve on-time collection to 92%, and provide ward-level operations dashboards.' },
+  { id:702, title:'Adaptive Signal Coordination Pilot', startupId:2, challengeId:103, submissionDate:'2026-10-17', status:'Accepted', description:'A corridor-based traffic management proposal using existing junction cameras and signal controllers.', solution:'Analyze traffic flow at 18 junctions and coordinate signal timing dynamically, with operator override and weekly performance reviews.', technologies:['Computer vision','Traffic analytics','Cloud platform'], estimatedBudget:720000, expectedOutcomes:'Reduce average peak-hour queue time by 18% on the pilot corridor within 16 weeks.' },
+  { id:703, title:'Real-Time Water Quality Sensor Network', startupId:4, challengeId:102, submissionDate:'2026-10-16', status:'Pending Review', description:'Continuous monitoring for water quality at distribution and storage points.', solution:'Install calibrated sensor nodes at 20 sampling locations and provide anomaly alerts with a verification workflow for field teams.', technologies:['Water sensors','IoT','Anomaly detection'], estimatedBudget:610000, expectedOutcomes:'Provide 24-hour monitoring coverage and reduce time to identify water-quality anomalies to under 30 minutes.' },
+  { id:704, title:'Permit Intake Automation', startupId:5, challengeId:105, submissionDate:'2026-10-14', status:'Revisions Requested', description:'Digitize document intake and case routing for building permit applications.', solution:'Add document classification, applicant status tracking, and an officer review queue while retaining human approval at each statutory decision point.', technologies:['Document AI','Workflow automation','GovTech'], estimatedBudget:540000, expectedOutcomes:'Reduce manual intake time by 35% and provide applicants with clear status updates at each review stage.' },
+  { id:705, title:'Privacy-First Park Incident Detection', startupId:6, challengeId:104, submissionDate:'2026-10-12', status:'Rejected', description:'A limited public-space safety pilot designed around on-device event detection.', solution:'Process video on edge devices and send only event metadata to the incident dashboard, with short retention and role-based access.', technologies:['Edge AI','Computer vision','Incident analytics'], estimatedBudget:395000, expectedOutcomes:'Reduce incident triage time by 20% while avoiding facial recognition and minimizing retained footage.' },
+  { id:706, title:'Water Operations Analytics Dashboard', startupId:3, challengeId:102, submissionDate:'2026-10-10', status:'Pending Review', description:'A utility-facing analytics layer for combining sensor and laboratory water-quality data.', solution:'Unify sensor readings and lab results in an operations dashboard with quality checks, trend alerts, and exportable reports.', technologies:['IoT','Analytics','Data visualization'], estimatedBudget:330000, expectedOutcomes:'Cut manual report preparation time by 40% and make sampling gaps visible to operations teams.' },
+];
+
+function matchStatusBadge(status) {
+  if (status === 'Pending Review') return 'badge-amber';
+  if (status === 'Shortlisted') return 'badge-teal';
+  if (status === 'Proposal Submitted') return 'badge-purple';
+  return 'badge-blue';
+}
+
+function matchScoreTone(score) {
+  if (score >= 85) return 'high';
+  if (score >= 80) return 'good';
+  return 'moderate';
+}
+
 function ChallengeEditorModal({ challenge, onClose, onSave }) {
   const creating = !challenge;
   const [form, setForm] = useState(() => challenge || {
@@ -2235,8 +2270,8 @@ function ChallengeDetailsModal({ challenge, onClose, onEdit }) {
   );
 }
 
-function MyChallengesPage({ challenges, setChallenges }) {
-  const [query, setQuery] = useState('');
+function MyChallengesPage({ challenges, setChallenges, initialSearch = '' }) {
+  const [query, setQuery] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [dialog, setDialog] = useState(null);
@@ -2352,6 +2387,422 @@ function MyChallengesPage({ challenges, setChallenges }) {
 
       {dialog?.mode === 'view' && <ChallengeDetailsModal challenge={dialog.challenge} onClose={() => setDialog(null)} onEdit={challenge => setDialog({ mode:'edit', challenge })} />}
       {(dialog?.mode === 'create' || dialog?.mode === 'edit') && <ChallengeEditorModal key={`${dialog.mode}-${dialog.challenge?.id || 'new'}`} challenge={dialog.challenge} onClose={() => setDialog(null)} onSave={saveChallenge} />}
+    </div>
+  );
+}
+
+function StartupMatchDetailsModal({ match, challenge, onClose, onReview, onShortlist, onOpenChallenge }) {
+  useEffect(() => {
+    const onKey = event => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="modal-overlay sm-modal" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="sm-detail-heading">
+        <div className="modal-header">
+          <span className="modal-title">Startup match details</span>
+          <button className="icon-btn" onClick={onClose} aria-label="Close details"><Icon name="X" size={16} /></button>
+        </div>
+        <div className="modal-body">
+          <div className="sm-detail-brand">
+            <div className="startup-avatar" style={{ background:match.color }}>{match.initials}</div>
+            <div className="sm-detail-brand-copy">
+              <h2 id="sm-detail-heading">{match.name}</h2>
+              <span>{match.domain}</span>
+            </div>
+            <div className={`sm-score-badge sm-score-${matchScoreTone(match.matchScore)}`}>{match.matchScore}% match</div>
+          </div>
+          <p className="sm-detail-description">{match.description}</p>
+          <div className="sm-detail-section">
+            <h3>Capabilities</h3>
+            <div className="sm-capability-list">{match.capabilities.map(capability => <span key={capability}>{capability}</span>)}</div>
+          </div>
+          <div className="sm-detail-section">
+            <h3>Relevant experience</h3>
+            <p>{match.experience}</p>
+          </div>
+          <div className="sm-detail-section">
+            <h3>Technologies</h3>
+            <div className="tag-list">{match.technologies.map(technology => <span className="tag" key={technology}>{technology}</span>)}</div>
+          </div>
+          <div className="sm-rationale">
+            <div className="sm-rationale-title"><Icon name="Sparkles" size={15} color="#0F9D8A" /> Matching rationale</div>
+            <p>{match.rationale}</p>
+          </div>
+          <div className="sm-related-challenge">
+            <span>Related challenge</span>
+            {challenge
+              ? <button className="view-link" onClick={() => onOpenChallenge(challenge.id)}>{challenge.title}<Icon name="ArrowUpRight" size={13} /></button>
+              : <span className="sm-no-challenge">No related challenge is available.</span>}
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onClose}>Close</button>
+          <button className="btn-secondary" onClick={() => onShortlist(match)}><Icon name={match.status === 'Shortlisted' ? 'BookmarkCheck' : 'BookmarkPlus'} size={14} />{match.status === 'Shortlisted' ? 'Remove shortlist' : 'Shortlist'}</button>
+          <button className="btn-primary" onClick={() => onReview(match)}><Icon name="ClipboardCheck" size={14} color="#fff" /> Review Match</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StartupMatchReviewModal({ match, onClose, onSave }) {
+  const [decision, setDecision] = useState('Reviewed');
+  const [note, setNote] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    const onKey = event => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  function submit(event) {
+    event.preventDefault();
+    if (note.trim().length < 10) {
+      setError('Add a review note with at least 10 characters.');
+      return;
+    }
+    onSave(match, { status:decision, reviewNote:note.trim() });
+  }
+
+  return (
+    <div className="modal-overlay sm-modal" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="sm-review-heading">
+        <form onSubmit={submit} noValidate>
+          <div className="modal-header">
+            <span className="modal-title" id="sm-review-heading">Review {match.name}</span>
+            <button type="button" className="icon-btn" onClick={onClose} aria-label="Close review"><Icon name="X" size={16} /></button>
+          </div>
+          <div className="modal-body">
+            <div className="form-group">
+              <label className="form-label" htmlFor="sm-review-decision">Review outcome</label>
+              <select id="sm-review-decision" className="form-select" value={decision} onChange={event => setDecision(event.target.value)}>
+                <option value="Reviewed">Reviewed</option>
+                <option value="Shortlisted">Shortlisted</option>
+                <option value="Declined">Declined</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="sm-review-note">Review note</label>
+              <textarea id="sm-review-note" className={`form-textarea${error ? ' mc-input-error' : ''}`} value={note} maxLength={500} onChange={event => { setNote(event.target.value); setError(''); }} placeholder="Add a concise reason for this review outcome…" aria-invalid={!!error} />
+              {error && <div className="mc-field-error" role="alert">{error}</div>}
+            </div>
+            <p className="sm-demo-note">This review is held in the current demo session only.</p>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn-primary"><Icon name="Check" size={14} color="#fff" /> Save Review</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function StartupMatchesPage({ matches, setMatches, challenges, onOpenChallenge }) {
+  const [search, setSearch] = useState('');
+  const [scoreFilter, setScoreFilter] = useState('All');
+  const [domainFilter, setDomainFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [dialog, setDialog] = useState(null);
+  const [notice, setNotice] = useState('');
+  const challengeById = id => challenges.find(challenge => challenge.id === id);
+  const domains = [...new Set(matches.map(match => match.domain))].sort();
+  const statuses = ['Pending Review','Reviewed','Shortlisted','Proposal Submitted','Declined'];
+  const filtered = matches.filter(match => {
+    const term = search.trim().toLowerCase();
+    const challenge = challengeById(match.challengeId);
+    const searchText = `${match.name} ${match.description} ${match.domain} ${match.technologies.join(' ')} ${challenge?.title || ''}`.toLowerCase();
+    const scoreMatches = scoreFilter === 'All'
+      || (scoreFilter === '85+' && match.matchScore >= 85)
+      || (scoreFilter === '70-84' && match.matchScore >= 70 && match.matchScore < 85)
+      || (scoreFilter === 'Under 70' && match.matchScore < 70);
+    return (!term || searchText.includes(term))
+      && scoreMatches
+      && (domainFilter === 'All' || match.domain === domainFilter)
+      && (statusFilter === 'All' || match.status === statusFilter);
+  });
+  const summaries = [
+    { label:'Total Matches', value:matches.length, icon:'Users', bg:'#EBF2FF', color:'#173C70' },
+    { label:'High Matches', value:matches.filter(match => match.matchScore >= 85).length, icon:'TrendingUp', bg:'#E6F7F5', color:'#0F9D8A' },
+    { label:'Shortlisted', value:matches.filter(match => match.status === 'Shortlisted').length, icon:'BookmarkCheck', bg:'#F3EEFF', color:'#6d28d9' },
+    { label:'Pending Review', value:matches.filter(match => match.status === 'Pending Review').length, icon:'ClipboardList', bg:'#FFF4E5', color:'#b45309' },
+  ];
+
+  function showFeedback(message) {
+    setNotice(message);
+    setDialog(null);
+  }
+
+  function toggleShortlist(match) {
+    const nextStatus = match.status === 'Shortlisted' ? (match.statusBeforeShortlist || 'Reviewed') : 'Shortlisted';
+    setMatches(previous => previous.map(item => item.id === match.id
+      ? { ...item, status:nextStatus, statusBeforeShortlist:nextStatus === 'Shortlisted' ? item.status : undefined }
+      : item));
+    showFeedback(nextStatus === 'Shortlisted' ? `${match.name} added to the shortlist.` : `${match.name} removed from the shortlist.`);
+  }
+
+  function saveReview(match, review) {
+    setMatches(previous => previous.map(item => item.id === match.id
+      ? { ...item, ...review, statusBeforeShortlist:review.status === 'Shortlisted' ? item.status : undefined }
+      : item));
+    showFeedback(`${match.name} marked ${review.status.toLowerCase()}.`);
+  }
+
+  function removeMatch(match) {
+    setMatches(previous => previous.filter(item => item.id !== match.id));
+    showFeedback(`${match.name} removed from the current match list.`);
+  }
+
+  function resetFilters() {
+    setSearch('');
+    setScoreFilter('All');
+    setDomainFilter('All');
+    setStatusFilter('All');
+  }
+
+  return (
+    <div className="page-content fade-in startup-matches-page">
+      <div className="welcome-bar">
+        <div>
+          <h1 className="mc-page-title">Startup Matches</h1>
+          <p className="mc-page-subtitle">Review startups ranked against your challenge needs, technologies and domain requirements.</p>
+        </div>
+      </div>
+      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}</div>}
+
+      <div className="summary-grid sm-summary-grid">
+        {summaries.map(card => <div key={card.label} className="summary-card"><div className="summary-icon" style={{ background:card.bg }}><Icon name={card.icon} size={20} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}
+      </div>
+
+      <section className="card sm-results-card">
+        <div className="card-header sm-results-header">
+          <div><div className="card-title">Matched Startups</div><div className="mc-result-count">Showing {filtered.length} of {matches.length} matches</div></div>
+          <div className="sm-filter-toolbar">
+            <div className="search-wrap sm-search"><span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span><input type="search" placeholder="Search name or technology…" aria-label="Search startup name or technology" value={search} onChange={event => setSearch(event.target.value)} /></div>
+            <select className="form-select sm-filter" aria-label="Filter by match score" value={scoreFilter} onChange={event => setScoreFilter(event.target.value)}><option value="All">All match scores</option><option value="85+">85% and above</option><option value="70-84">70% to 84%</option><option value="Under 70">Below 70%</option></select>
+            <select className="form-select sm-filter" aria-label="Filter by domain" value={domainFilter} onChange={event => setDomainFilter(event.target.value)}><option value="All">All domains</option>{domains.map(domain => <option key={domain} value={domain}>{domain}</option>)}</select>
+            <select className="form-select sm-filter" aria-label="Filter by review status" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="All">All review statuses</option>{statuses.map(status => <option key={status} value={status}>{status}</option>)}</select>
+          </div>
+        </div>
+
+        {filtered.length ? <div className="sm-match-grid">
+          {filtered.map(match => {
+            const challenge = challengeById(match.challengeId);
+            return <article className="sm-match-card" key={match.id}>
+              <div className="sm-card-heading">
+                <div className="sm-company">
+                  <div className="startup-avatar" style={{ background:match.color }}>{match.initials}</div>
+                  <div className="sm-company-copy"><h2>{match.name}</h2><span>{match.domain}</span></div>
+                </div>
+                <span className={`sm-score-badge sm-score-${matchScoreTone(match.matchScore)}`}>{match.matchScore}% match</span>
+              </div>
+              <p className="sm-card-description">{match.description}</p>
+              <div className="sm-card-meta"><span>Proposal status</span><span className={`badge ${matchStatusBadge(match.status)}`}>{match.status}</span></div>
+              <div className="sm-tech-label">Technologies</div>
+              <div className="tag-list sm-tech-list">{match.technologies.map(technology => <span className="tag" key={technology}>{technology}</span>)}</div>
+              {challenge && <div className="sm-challenge-link"><span>Matched challenge</span><button className="view-link" onClick={() => onOpenChallenge(challenge.id)}>{challenge.title}<Icon name="ArrowUpRight" size={13} /></button></div>}
+              <div className="sm-card-actions">
+                <button className="btn-secondary" onClick={() => setDialog({ type:'details', match })}><Icon name="Eye" size={14} /> Details</button>
+                <button className="btn-secondary" onClick={() => setDialog({ type:'review', match })}><Icon name="ClipboardCheck" size={14} /> Review</button>
+                <button className={`btn-secondary${match.status === 'Shortlisted' ? ' sm-shortlisted-action' : ''}`} onClick={() => toggleShortlist(match)}><Icon name={match.status === 'Shortlisted' ? 'BookmarkCheck' : 'BookmarkPlus'} size={14} />{match.status === 'Shortlisted' ? 'Shortlisted' : 'Shortlist'}</button>
+                <button className="sm-remove-action" onClick={() => setDialog({ type:'remove', match })}><Icon name="Trash2" size={14} /> Remove</button>
+              </div>
+            </article>;
+          })}
+        </div> : <div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="SearchX" size={22} color="#173C70" /></div><h2>No matching startups</h2><p>Adjust your search or filters to see other startup matches.</p><button className="btn-secondary" onClick={resetFilters}>Clear filters</button></div>}
+      </section>
+
+      {dialog?.type === 'details' && <StartupMatchDetailsModal match={dialog.match} challenge={challengeById(dialog.match.challengeId)} onClose={() => setDialog(null)} onReview={match => setDialog({ type:'review', match })} onShortlist={toggleShortlist} onOpenChallenge={id => { setDialog(null); onOpenChallenge(id); }} />}
+      {dialog?.type === 'review' && <StartupMatchReviewModal match={dialog.match} onClose={() => setDialog(null)} onSave={saveReview} />}
+      {dialog?.type === 'remove' && <div className="modal-overlay sm-modal" onClick={event => { if (event.target === event.currentTarget) setDialog(null); }}><div className="modal-box sm-confirm-box" role="dialog" aria-modal="true" aria-labelledby="sm-remove-heading"><div className="modal-header"><span className="modal-title" id="sm-remove-heading">Remove startup match?</span><button className="icon-btn" onClick={() => setDialog(null)} aria-label="Close confirmation"><Icon name="X" size={16} /></button></div><div className="modal-body"><p className="sm-remove-copy">Remove <strong>{dialog.match.name}</strong> from this demo match list? This can’t be undone during this session.</p><p className="sm-demo-note">This only changes the current frontend demo state.</p></div><div className="modal-footer"><button className="btn-secondary" onClick={() => setDialog(null)}>Keep Match</button><button className="sm-confirm-remove" onClick={() => removeMatch(dialog.match)}><Icon name="Trash2" size={14} /> Remove Match</button></div></div></div>}
+    </div>
+  );
+}
+
+function proposalStatusBadge(status) {
+  if (status === 'Pending Review') return 'badge-amber';
+  if (status === 'Accepted') return 'badge-teal';
+  if (status === 'Rejected') return 'pr-status-rejected';
+  return 'pr-status-revisions';
+}
+
+function formatProposalDate(value) {
+  if (!value) return 'Not set';
+  return new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function ProposalDetailsModal({ proposal, startup, challenge, onClose, onReview, onOpenChallenge }) {
+  useEffect(() => {
+    const onKey = event => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const budget = new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:0 }).format(proposal.estimatedBudget);
+  return (
+    <div className="modal-overlay pr-modal" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="pr-detail-title">
+        <div className="modal-header">
+          <span className="modal-title">Proposal details</span>
+          <button className="icon-btn" onClick={onClose} aria-label="Close proposal details"><Icon name="X" size={16} /></button>
+        </div>
+        <div className="modal-body">
+          <div className="pr-detail-heading">
+            <div><h2 id="pr-detail-title">{proposal.title}</h2><span className={`badge ${proposalStatusBadge(proposal.status)}`}>{proposal.status}</span></div>
+            <span className="pr-submitted-date">Submitted {formatProposalDate(proposal.submissionDate)}</span>
+          </div>
+          <div className="pr-detail-row"><span>Related challenge</span>{challenge ? <button className="view-link" onClick={() => onOpenChallenge(challenge.id)}>{challenge.title}<Icon name="ArrowUpRight" size={13} /></button> : <strong>Challenge unavailable</strong>}</div>
+          <section className="pr-detail-section"><h3>Proposal description</h3><p>{proposal.description}</p></section>
+          <section className="pr-detail-section"><h3>Proposed solution</h3><p>{proposal.solution}</p></section>
+          <section className="pr-detail-section"><h3>Technologies</h3><div className="pr-tech-list">{proposal.technologies.map(technology => <span key={technology}>{technology}</span>)}</div></section>
+          <section className="pr-detail-section"><h3>Estimated budget</h3><p>{budget}</p></section>
+          <section className="pr-detail-section"><h3>Expected outcomes</h3><p>{proposal.expectedOutcomes}</p></section>
+          {proposal.reviewNote && <section className="pr-review-note"><h3>Latest review note</h3><p>{proposal.reviewNote}</p></section>}
+          <section className="pr-startup-block">
+            <div className="pr-startup-heading"><div className="startup-avatar" style={{ background:startup?.color || '#173C70' }}>{startup?.initials || 'ST'}</div><div><h3>{startup?.name || proposal.startupName}</h3><span>{startup?.domain || 'Startup applicant'}</span></div></div>
+            <p>{startup?.description || 'Startup profile information is unavailable.'}</p>
+            {startup?.experience && <p><strong>Relevant experience:</strong> {startup.experience}</p>}
+            {startup?.capabilities?.length > 0 && <div className="pr-tech-list">{startup.capabilities.map(capability => <span key={capability}>{capability}</span>)}</div>}
+          </section>
+        </div>
+        <div className="modal-footer"><button className="btn-secondary" onClick={onClose}>Close</button><button className="btn-primary" onClick={() => onReview(proposal)}><Icon name="ClipboardCheck" size={14} color="#fff" /> Review Proposal</button></div>
+      </div>
+    </div>
+  );
+}
+
+function ProposalReviewModal({ proposal, onClose, onSave }) {
+  const [decision, setDecision] = useState('Accepted');
+  const [note, setNote] = useState('');
+  const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => {
+    const onKey = event => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  function continueToConfirm(event) {
+    event.preventDefault();
+    if (decision !== 'Accepted' && note.trim().length < 10) {
+      setError('Add a review note of at least 10 characters for this decision.');
+      return;
+    }
+    setError('');
+    setConfirming(true);
+  }
+
+  return (
+    <div className="modal-overlay pr-modal" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="pr-review-title">
+        {confirming ? (
+          <>
+            <div className="modal-header"><span className="modal-title" id="pr-review-title">Confirm proposal decision</span><button className="icon-btn" onClick={onClose} aria-label="Close review confirmation"><Icon name="X" size={16} /></button></div>
+            <div className="modal-body"><p className="pr-confirm-copy">Mark <strong>{proposal.title}</strong> as <span className={`badge ${proposalStatusBadge(decision)}`}>{decision}</span>?</p>{note.trim() && <p className="pr-confirm-note">Review note: {note.trim()}</p>}<p className="sm-demo-note">This changes the current frontend demo state only.</p></div>
+            <div className="modal-footer"><button className="btn-secondary" onClick={() => setConfirming(false)}>Back to Review</button><button className="btn-primary" onClick={() => onSave(proposal, { status:decision, reviewNote:note.trim() })}><Icon name="Check" size={14} color="#fff" /> Confirm Decision</button></div>
+          </>
+        ) : (
+          <form onSubmit={continueToConfirm} noValidate>
+            <div className="modal-header"><span className="modal-title" id="pr-review-title">Review proposal</span><button type="button" className="icon-btn" onClick={onClose} aria-label="Close proposal review"><Icon name="X" size={16} /></button></div>
+            <div className="modal-body">
+              <p className="pr-reviewing-title">{proposal.title}</p>
+              <div className="form-group"><label className="form-label" htmlFor="pr-decision">Decision</label><select id="pr-decision" className="form-select" value={decision} onChange={event => { setDecision(event.target.value); setError(''); }}><option value="Accepted">Accept proposal</option><option value="Rejected">Reject proposal</option><option value="Revisions Requested">Request revisions</option></select></div>
+              <div className="form-group"><label className="form-label" htmlFor="pr-review-note">Review note {decision !== 'Accepted' && <span className="post-required">Required</span>}</label><textarea id="pr-review-note" className={`form-textarea${error ? ' mc-input-error' : ''}`} value={note} onChange={event => { setNote(event.target.value); setError(''); }} maxLength={500} placeholder="Summarize the decision and any next steps…" aria-invalid={!!error} />{error && <div className="mc-field-error" role="alert">{error}</div>}</div>
+              <p className="sm-demo-note">You will confirm this decision before it is applied.</p>
+            </div>
+            <div className="modal-footer"><button type="button" className="btn-secondary" onClick={onClose}>Cancel</button><button type="submit" className="btn-primary"><Icon name="ArrowRight" size={14} color="#fff" /> Continue</button></div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProposalsPage({ proposals, setProposals, challenges, onOpenChallenge }) {
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [challengeFilter, setChallengeFilter] = useState('All');
+  const [dialog, setDialog] = useState(null);
+  const [notice, setNotice] = useState('');
+  const challengeById = id => challenges.find(challenge => challenge.id === id);
+  const startupById = id => INITIAL_GOV_MATCHES.find(startup => startup.id === id);
+  const challengeOptions = [...new Map(proposals.map(proposal => {
+    const challenge = challengeById(proposal.challengeId);
+    return challenge ? [challenge.id, challenge.title] : null;
+  }).filter(Boolean))];
+  const filtered = proposals.filter(proposal => {
+    const startup = startupById(proposal.startupId);
+    const challenge = challengeById(proposal.challengeId);
+    const term = search.trim().toLowerCase();
+    const matchesSearch = !term || `${proposal.title} ${startup?.name || proposal.startupName || ''}`.toLowerCase().includes(term);
+    return matchesSearch
+      && (statusFilter === 'All' || proposal.status === statusFilter)
+      && (challengeFilter === 'All' || String(proposal.challengeId) === challengeFilter);
+  });
+  const summaryCards = [
+    { label:'Total Proposals', value:proposals.length, icon:'Files', bg:'#EBF2FF', color:'#173C70' },
+    { label:'Pending Review', value:proposals.filter(proposal => proposal.status === 'Pending Review').length, icon:'ClipboardList', bg:'#FFF4E5', color:'#b45309' },
+    { label:'Accepted', value:proposals.filter(proposal => proposal.status === 'Accepted').length, icon:'CheckCircle', bg:'#E6F7F5', color:'#0F9D8A' },
+    { label:'Rejected', value:proposals.filter(proposal => proposal.status === 'Rejected').length, icon:'XCircle', bg:'#FEE4E2', color:'#b42318' },
+  ];
+
+  function saveReview(proposal, review) {
+    setProposals(previous => previous.map(item => item.id === proposal.id ? { ...item, ...review } : item));
+    setNotice(`${proposal.title} marked ${review.status.toLowerCase()}.`);
+    setDialog(null);
+  }
+
+  function resetFilters() {
+    setSearch('');
+    setStatusFilter('All');
+    setChallengeFilter('All');
+  }
+
+  return (
+    <div className="page-content proposals-page">
+      <div className="welcome-bar">
+        <div><h1 className="mc-page-title">Proposals</h1><p className="mc-page-subtitle">Review startup solutions submitted for your department’s challenges.</p></div>
+      </div>
+      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice} <span className="pr-demo-caption">Demo session only.</span></div>}
+
+      <div className="summary-grid pr-summary-grid">
+        {summaryCards.map(card => <div key={card.label} className="summary-card"><div className="summary-icon" style={{ background:card.bg }}><Icon name={card.icon} size={20} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}
+      </div>
+
+      <section className="card pr-list-card">
+        <div className="card-header pr-list-header">
+          <div><div className="card-title">Submitted Proposals</div><div className="mc-result-count">Showing {filtered.length} of {proposals.length} proposals</div></div>
+          <div className="pr-toolbar">
+            <div className="search-wrap pr-search"><span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span><input type="search" aria-label="Search startup or proposal" placeholder="Search startup or proposal…" value={search} onChange={event => setSearch(event.target.value)} /></div>
+            <select className="form-select pr-filter" aria-label="Filter proposals by status" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="All">All statuses</option>{['Pending Review','Accepted','Rejected','Revisions Requested'].map(status => <option key={status} value={status}>{status}</option>)}</select>
+            <select className="form-select pr-filter" aria-label="Filter proposals by challenge" value={challengeFilter} onChange={event => setChallengeFilter(event.target.value)}><option value="All">All challenges</option>{challengeOptions.map(([id,title]) => <option key={id} value={id}>{title}</option>)}</select>
+          </div>
+        </div>
+
+        {filtered.length ? <div className="table-wrap pr-table-wrap">
+          <table className="pr-table">
+            <thead><tr>{['Proposal','Startup','Related challenge','Submitted','Status','Actions'].map(label => <th key={label}>{label}</th>)}</tr></thead>
+            <tbody>{filtered.map(proposal => {
+              const startup = startupById(proposal.startupId);
+              const challenge = challengeById(proposal.challengeId);
+              return <tr key={proposal.id}>
+                <td className="pr-title-cell" data-label="Proposal">{proposal.title}</td>
+                <td data-label="Startup"><span className="pr-startup-name"><span className="startup-avatar" style={{ background:startup?.color || '#173C70' }}>{startup?.initials || 'ST'}</span>{startup?.name || proposal.startupName}</span></td>
+                <td data-label="Related challenge">{challenge?.title || 'Challenge unavailable'}</td>
+                <td data-label="Submitted">{formatProposalDate(proposal.submissionDate)}</td>
+                <td data-label="Status"><span className={`badge ${proposalStatusBadge(proposal.status)}`}>{proposal.status}</span></td>
+                <td className="pr-actions-cell" data-label="Actions"><div className="pr-row-actions"><button className="btn-secondary pr-action-btn" onClick={() => setDialog({ type:'details', proposal })}><Icon name="Eye" size={14} /> View</button><button className="btn-primary pr-action-btn" onClick={() => setDialog({ type:'review', proposal })}><Icon name="ClipboardCheck" size={14} color="#fff" /> Review</button></div></td>
+              </tr>;
+            })}</tbody>
+          </table>
+        </div> : <div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="SearchX" size={22} color="#173C70" /></div><h2>No matching proposals</h2><p>Try another search or clear the selected filters.</p><button className="btn-secondary" onClick={resetFilters}>Clear filters</button></div>}
+      </section>
+
+      {dialog?.type === 'details' && <ProposalDetailsModal proposal={dialog.proposal} startup={startupById(dialog.proposal.startupId)} challenge={challengeById(dialog.proposal.challengeId)} onClose={() => setDialog(null)} onReview={proposal => setDialog({ type:'review', proposal })} onOpenChallenge={id => { setDialog(null); onOpenChallenge(id); }} />}
+      {dialog?.type === 'review' && <ProposalReviewModal proposal={dialog.proposal} onClose={() => setDialog(null)} onSave={saveReview} />}
     </div>
   );
 }
@@ -2547,15 +2998,29 @@ function GovDashboard({ setPage }) {
   const [activeNav, setActiveNav]               = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [govChallenges, setGovChallenges]       = useState(INITIAL_GOV_CHALLENGES);
+  const [govMatches, setGovMatches]             = useState(INITIAL_GOV_MATCHES);
+  const [govProposals, setGovProposals]         = useState(INITIAL_GOV_PROPOSALS);
+  const [challengeSearchSeed, setChallengeSearchSeed] = useState('');
+
+  function openRelatedChallenge(challengeId) {
+    const challenge = govChallenges.find(item => item.id === challengeId);
+    setChallengeSearchSeed(challenge?.title || '');
+    setActiveNav('challenges');
+  }
+
   return (
-    <div className="app-shell">
-      <GovSidebar active={activeNav} onSelect={setActiveNav} collapsed={sidebarCollapsed} onExit={() => setPage('home')} />
+    <div className={`app-shell${activeNav === 'proposals' ? ' proposals-shell' : ''}`}>
+      <GovSidebar active={activeNav} onSelect={id => { if (id === 'challenges') setChallengeSearchSeed(''); setActiveNav(id); }} collapsed={sidebarCollapsed} onExit={() => setPage('home')} />
       <div className="main-area">
         <GovHeader onToggleSidebar={() => setSidebarCollapsed(c => !c)} />
         {activeNav === 'dashboard'
           ? <DashboardPage />
           : activeNav === 'challenges'
-            ? <MyChallengesPage challenges={govChallenges} setChallenges={setGovChallenges} />
+            ? <MyChallengesPage challenges={govChallenges} setChallenges={setGovChallenges} initialSearch={challengeSearchSeed} />
+            : activeNav === 'matches'
+              ? <StartupMatchesPage matches={govMatches} setMatches={setGovMatches} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} />
+              : activeNav === 'proposals'
+                ? <ProposalsPage proposals={govProposals} setProposals={setGovProposals} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} />
             : activeNav === 'post'
               ? <PostChallengePage
                   onCreate={challenge => setGovChallenges(previous => [{ ...challenge, id:Date.now() }, ...previous])}
