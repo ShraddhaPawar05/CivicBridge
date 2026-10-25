@@ -3909,3 +3909,74 @@ tbody td {
 .reg-brand-gov      { background: #173C70; }
 .reg-brand-startup  { background: #0a6b5e; }
 .reg-brand-eval     { background: #4c1d95; }
+
+/* ── Government My Challenges ── */
+.my-challenges-page .welcome-bar { align-items: flex-start; gap: 16px; }
+.mc-page-title { margin: 0; color: #182230; font-size: 20px; font-weight: 700; }
+.mc-page-subtitle { margin: 5px 0 0; color: #667085; font-size: 13px; line-height: 1.5; }
+.mc-summary-grid .summary-card { min-width: 0; }
+.mc-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -8px 0 18px;
+  padding: 10px 12px;
+  border: 1px solid #b9e7df;
+  border-radius: 8px;
+  background: #effaf8;
+  color: #0a7a6e;
+  font-size: 13px;
+}
+.mc-list-card { overflow: hidden; }
+.mc-list-header { align-items: flex-start; gap: 18px; flex-wrap: wrap; }
+.mc-result-count { margin-top: 4px; color: #667085; font-size: 12px; }
+.mc-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mc-search { flex: 1 1 190px; width: 230px; max-width: 260px; }
+.mc-filter { width: auto; min-width: 140px; max-width: 180px; }
+.mc-table { min-width: 820px; }
+.mc-table tbody td { padding-top: 14px; padding-bottom: 14px; }
+.mc-title-cell { min-width: 200px; font-weight: 600; }
+.mc-actions-cell { width: 150px; }
+.mc-row-actions { display: flex; align-items: center; gap: 7px; }
+.mc-action-btn { padding: 6px 9px; font-size: 12px; }
+.mc-action-btn svg { flex: 0 0 auto; }
+.mc-empty-state { display: flex; flex-direction: column; align-items: center; padding: 40px 20px; text-align: center; }
+.mc-empty-icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; margin-bottom: 12px; border-radius: 12px; background: #EBF2FF; }
+.mc-empty-state h2 { margin: 0; color: #182230; font-size: 16px; font-weight: 700; }
+.mc-empty-state p { margin: 6px 0 16px; color: #667085; font-size: 13px; }
+.mc-detail-title { margin: 0 0 8px; color: #182230; font-size: 18px; font-weight: 700; }
+.mc-detail-description { margin: 0 0 18px; color: #667085; font-size: 13px; line-height: 1.6; }
+.mc-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.mc-input-error { border-color: #dc2626 !important; }
+.mc-field-error { margin-top: 5px; color: #b91c1c; font-size: 12px; line-height: 1.4; }
+.mc-optional { color: #667085; font-weight: 400; }
+.mc-character-count { margin-top: 4px; color: #667085; font-size: 11px; text-align: right; }
+.mc-modal .modal-box { width: 600px; }
+.mc-modal .modal-footer button { min-height: 36px; }
+
+@media (max-width: 760px) {
+  .mc-list-header { display: block; }
+  .mc-toolbar { margin-top: 14px; }
+  .mc-search { width: 100%; max-width: none; }
+  .mc-filter { flex: 1 1 140px; max-width: none; }
+  .mc-table-wrap { overflow: visible; }
+  .mc-table, .mc-table tbody { display: block; width: 100%; min-width: 0; }
+  .mc-table thead { display: none; }
+  .mc-table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; padding: 14px 16px; border-bottom: 1px solid #E5EAF1; }
+  .mc-table tbody tr:last-child { border-bottom: 0; }
+  .mc-table tbody td { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 0; border: 0; font-size: 12px; }
+  .mc-table tbody td::before { content: attr(data-label); color: #667085; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+  .mc-table tbody td.mc-title-cell { grid-column: 1 / -1; min-width: 0; font-size: 14px; }
+  .mc-table tbody td.mc-title-cell::before { display: none; }
+  .mc-table tbody td.mc-actions-cell { grid-column: 1 / -1; }
+  .mc-row-actions { padding-top: 2px; }
+}
+
+@media (max-width: 520px) {
+  .my-challenges-page .welcome-bar { flex-direction: column; }
+  .my-challenges-page .welcome-bar > button { width: 100%; justify-content: center; }
+  .mc-form-grid { grid-template-columns: 1fr; gap: 0; }
+  .mc-modal .modal-header { padding: 16px; }
+  .mc-modal .modal-body { padding: 16px; }
+  .mc-modal .modal-footer { padding: 12px 16px; }
+}

@@ -2090,6 +2090,263 @@ function DashboardPage() {
   );
 }
 
+const INITIAL_GOV_CHALLENGES = [
+  { id:101, title:'Smart Waste Collection', category:'Smart Cities', status:'Active', applications:8, deadline:'2026-10-30', description:'Optimize waste collection routes using AI and IoT sensors to reduce operational costs and improve city-wide efficiency.' },
+  { id:102, title:'Urban Water Quality Monitoring', category:'Environment', status:'Under Review', applications:6, deadline:'2026-11-15', description:'Deploy real-time water quality sensors and analytics to monitor contamination across the municipal supply network.' },
+  { id:103, title:'Traffic Congestion Monitoring', category:'Transport', status:'Under Review', applications:10, deadline:'2026-11-20', description:'Use traffic data and adaptive signals to reduce peak-hour congestion across key city corridors.' },
+  { id:104, title:'Public Park Safety Network', category:'Public Safety', status:'Completed', applications:5, deadline:'2026-09-25', description:'Improve public park safety with connected monitoring and faster incident response.' },
+  { id:105, title:'Digital Permit Processing', category:'GovTech', status:'Active', applications:4, deadline:'2026-12-10', description:'Streamline building permit applications with digital workflows and document automation.' },
+];
+
+function challengeStatusBadge(status) {
+  if (status === 'Under Review') return 'badge-amber';
+  if (status === 'Completed') return 'badge-blue';
+  return 'badge-teal';
+}
+
+function formatChallengeDeadline(value) {
+  if (!value) return 'Not set';
+  return new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function ChallengeEditorModal({ challenge, onClose, onSave }) {
+  const creating = !challenge;
+  const [form, setForm] = useState(() => challenge || {
+    title:'', category:'', status:'Active', deadline:'', description:'', applications:0,
+  });
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    const onKey = event => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const update = key => event => {
+    const value = event.target.value;
+    setForm(previous => ({ ...previous, [key]:value }));
+    setErrors(previous => ({ ...previous, [key]:'' }));
+  };
+
+  function submit(event) {
+    event.preventDefault();
+    const nextErrors = {
+      title: form.title.trim().length < 5 ? 'Enter a title with at least 5 characters.' : '',
+      category: form.category ? '' : 'Choose a challenge category.',
+      status: form.status ? '' : 'Choose a status.',
+      deadline: form.deadline ? '' : 'Choose an application deadline.',
+      description: form.description.length > 300 ? 'Keep the description to 300 characters or fewer.' : '',
+    };
+    setErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) return;
+    onSave({ ...form, title:form.title.trim(), description:form.description.trim() });
+  }
+
+  return (
+    <div className="modal-overlay mc-modal" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="modal-box">
+        <form onSubmit={submit} noValidate>
+          <div className="modal-header">
+            <span className="modal-title">{creating ? 'Post Challenge' : 'Edit Challenge'}</span>
+            <button type="button" className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="X" size={16} /></button>
+          </div>
+          <div className="modal-body">
+            <div className="mc-form-grid">
+              <div className="form-group">
+                <label className="form-label" htmlFor="mc-title">Challenge title</label>
+                <input id="mc-title" className={`form-input${errors.title ? ' mc-input-error' : ''}`} value={form.title} onChange={update('title')} aria-invalid={!!errors.title} aria-describedby={errors.title ? 'mc-title-error' : undefined} maxLength={100} />
+                {errors.title && <div id="mc-title-error" className="mc-field-error" role="alert">{errors.title}</div>}
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="mc-category">Category</label>
+                <select id="mc-category" className={`form-select${errors.category ? ' mc-input-error' : ''}`} value={form.category} onChange={update('category')} aria-invalid={!!errors.category}>
+                  <option value="">Select category…</option>
+                  {['Smart Cities','Environment','Transport','Public Safety','GovTech','Health','Education','Other'].map(category => <option key={category} value={category}>{category}</option>)}
+                </select>
+                {errors.category && <div className="mc-field-error" role="alert">{errors.category}</div>}
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="mc-status">Status</label>
+                <select id="mc-status" className={`form-select${errors.status ? ' mc-input-error' : ''}`} value={form.status} onChange={update('status')} aria-invalid={!!errors.status}>
+                  {['Active','Under Review','Completed'].map(status => <option key={status} value={status}>{status}</option>)}
+                </select>
+                {errors.status && <div className="mc-field-error" role="alert">{errors.status}</div>}
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="mc-deadline">Application deadline</label>
+                <input id="mc-deadline" type="date" className={`form-input${errors.deadline ? ' mc-input-error' : ''}`} value={form.deadline} onChange={update('deadline')} aria-invalid={!!errors.deadline} />
+                {errors.deadline && <div className="mc-field-error" role="alert">{errors.deadline}</div>}
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="mc-description">Description <span className="mc-optional">Optional</span></label>
+              <textarea id="mc-description" className={`form-textarea${errors.description ? ' mc-input-error' : ''}`} value={form.description} onChange={update('description')} maxLength={300} aria-invalid={!!errors.description} />
+              <div className="mc-character-count">{form.description.length}/300</div>
+              {errors.description && <div className="mc-field-error" role="alert">{errors.description}</div>}
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn-primary"><Icon name="Check" size={14} color="#fff" /> {creating ? 'Create Challenge' : 'Save Changes'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ChallengeDetailsModal({ challenge, onClose, onEdit }) {
+  useEffect(() => {
+    const onKey = event => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="modal-overlay mc-modal" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="modal-box">
+        <div className="modal-header">
+          <span className="modal-title">Challenge details</span>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="X" size={16} /></button>
+        </div>
+        <div className="modal-body">
+          <h2 className="mc-detail-title">{challenge.title}</h2>
+          <p className="mc-detail-description">{challenge.description || 'No description provided.'}</p>
+          <div className="detail-row"><span className="detail-label">Category</span><span className="detail-value">{challenge.category}</span></div>
+          <div className="detail-row"><span className="detail-label">Status</span><span className="detail-value"><span className={`badge ${challengeStatusBadge(challenge.status)}`}>{challenge.status}</span></span></div>
+          <div className="detail-row"><span className="detail-label">Applications</span><span className="detail-value">{challenge.applications}</span></div>
+          <div className="detail-row"><span className="detail-label">Deadline</span><span className="detail-value">{formatChallengeDeadline(challenge.deadline)}</span></div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onClose}>Close</button>
+          <button className="btn-primary" onClick={() => onEdit(challenge)}><Icon name="Pencil" size={14} color="#fff" /> Edit Challenge</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MyChallengesPage({ challenges, setChallenges }) {
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [dialog, setDialog] = useState(null);
+  const [notice, setNotice] = useState('');
+
+  const categories = [...new Set(challenges.map(challenge => challenge.category))].sort();
+  const filtered = challenges.filter(challenge => {
+    const term = query.trim().toLowerCase();
+    const matchesSearch = !term || `${challenge.title} ${challenge.category} ${challenge.status}`.toLowerCase().includes(term);
+    const matchesStatus = statusFilter === 'All' || challenge.status === statusFilter;
+    const matchesCategory = categoryFilter === 'All' || challenge.category === categoryFilter;
+    return matchesSearch && matchesStatus && matchesCategory;
+  });
+  const counts = [
+    { label:'Total Challenges', value:challenges.length, icon:'Layers', bg:'#EBF2FF', color:'#173C70' },
+    { label:'Active', value:challenges.filter(challenge => challenge.status === 'Active').length, icon:'Zap', bg:'#E6F7F5', color:'#0F9D8A' },
+    { label:'Under Review', value:challenges.filter(challenge => challenge.status === 'Under Review').length, icon:'ClipboardCheck', bg:'#FFF4E5', color:'#b45309' },
+    { label:'Completed', value:challenges.filter(challenge => challenge.status === 'Completed').length, icon:'CheckCircle', bg:'#F3EEFF', color:'#6d28d9' },
+  ];
+
+  function saveChallenge(challenge) {
+    if (dialog.mode === 'create') {
+      setChallenges(previous => [{ ...challenge, id:Date.now(), applications:0 }, ...previous]);
+      setNotice('Challenge created in this demo session.');
+    } else {
+      setChallenges(previous => previous.map(item => item.id === challenge.id ? challenge : item));
+      setNotice('Challenge changes saved in this demo session.');
+    }
+    setDialog(null);
+  }
+
+  function resetFilters() {
+    setQuery('');
+    setStatusFilter('All');
+    setCategoryFilter('All');
+  }
+
+  return (
+    <div className="page-content fade-in my-challenges-page">
+      <div className="welcome-bar">
+        <div>
+          <h1 className="mc-page-title">My Challenges</h1>
+          <p className="mc-page-subtitle">Track challenge activity, review applications and manage deadlines.</p>
+        </div>
+        <button className="btn-primary" onClick={() => { setNotice(''); setDialog({ mode:'create' }); }}><Icon name="Plus" size={15} color="#fff" /> Post Challenge</button>
+      </div>
+
+      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}</div>}
+
+      <div className="summary-grid mc-summary-grid">
+        {counts.map(card => (
+          <div key={card.label} className="summary-card">
+            <div className="summary-icon" style={{ background:card.bg }}><Icon name={card.icon} size={20} color={card.color} /></div>
+            <div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div>
+          </div>
+        ))}
+      </div>
+
+      <div className="card mc-list-card">
+        <div className="card-header mc-list-header">
+          <div>
+            <div className="card-title">Challenge List</div>
+            <div className="mc-result-count">{filtered.length} of {challenges.length} challenges</div>
+          </div>
+          <div className="mc-toolbar">
+            <div className="search-wrap mc-search">
+              <span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span>
+              <input type="search" placeholder="Search challenges…" aria-label="Search challenges" value={query} onChange={event => setQuery(event.target.value)} />
+            </div>
+            <select className="form-select mc-filter" aria-label="Filter by status" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}>
+              <option value="All">All statuses</option>
+              {['Active','Under Review','Completed'].map(status => <option key={status} value={status}>{status}</option>)}
+            </select>
+            <select className="form-select mc-filter" aria-label="Filter by category" value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)}>
+              <option value="All">All categories</option>
+              {categories.map(category => <option key={category} value={category}>{category}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {filtered.length ? (
+          <div className="table-wrap mc-table-wrap">
+            <table className="mc-table">
+              <thead><tr>{['Challenge','Category','Status','Applications','Deadline','Actions'].map(label => <th key={label}>{label}</th>)}</tr></thead>
+              <tbody>
+                {filtered.map(challenge => (
+                  <tr key={challenge.id}>
+                    <td className="mc-title-cell" data-label="Challenge">{challenge.title}</td>
+                    <td data-label="Category">{challenge.category}</td>
+                    <td data-label="Status"><span className={`badge ${challengeStatusBadge(challenge.status)}`}>{challenge.status}</span></td>
+                    <td data-label="Applications">{challenge.applications}</td>
+                    <td data-label="Deadline">{formatChallengeDeadline(challenge.deadline)}</td>
+                    <td className="mc-actions-cell" data-label="Actions">
+                      <div className="mc-row-actions">
+                        <button className="btn-secondary mc-action-btn" onClick={() => setDialog({ mode:'view', challenge })}><Icon name="Eye" size={14} /> View</button>
+                        <button className="btn-secondary mc-action-btn" onClick={() => setDialog({ mode:'edit', challenge })}><Icon name="Pencil" size={14} /> Edit</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="mc-empty-state">
+            <div className="mc-empty-icon"><Icon name="SearchX" size={22} color="#173C70" /></div>
+            <h2>No matching challenges</h2>
+            <p>Try a different search term or clear your filters.</p>
+            <button className="btn-secondary" onClick={resetFilters}>Clear filters</button>
+          </div>
+        )}
+      </div>
+
+      {dialog?.mode === 'view' && <ChallengeDetailsModal challenge={dialog.challenge} onClose={() => setDialog(null)} onEdit={challenge => setDialog({ mode:'edit', challenge })} />}
+      {(dialog?.mode === 'create' || dialog?.mode === 'edit') && <ChallengeEditorModal key={`${dialog.mode}-${dialog.challenge?.id || 'new'}`} challenge={dialog.challenge} onClose={() => setDialog(null)} onSave={saveChallenge} />}
+    </div>
+  );
+}
+
 function GovInnerPage({ title }) {
   return (
     <div className="page-content fade-in" style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:400 }}>
@@ -2113,6 +2370,7 @@ const GOV_PAGE_TITLES = {
 function GovDashboard({ setPage }) {
   const [activeNav, setActiveNav]               = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [govChallenges, setGovChallenges]       = useState(INITIAL_GOV_CHALLENGES);
   return (
     <div className="app-shell">
       <GovSidebar active={activeNav} onSelect={setActiveNav} collapsed={sidebarCollapsed} onExit={() => setPage('home')} />
@@ -2120,7 +2378,9 @@ function GovDashboard({ setPage }) {
         <GovHeader onToggleSidebar={() => setSidebarCollapsed(c => !c)} />
         {activeNav === 'dashboard'
           ? <DashboardPage />
-          : <GovInnerPage title={GOV_PAGE_TITLES[activeNav] || activeNav} />
+          : activeNav === 'challenges'
+            ? <MyChallengesPage challenges={govChallenges} setChallenges={setGovChallenges} />
+            : <GovInnerPage title={GOV_PAGE_TITLES[activeNav] || activeNav} />
         }
       </div>
     </div>
