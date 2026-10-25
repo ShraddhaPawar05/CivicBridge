@@ -3980,3 +3980,40 @@ tbody td {
   .mc-modal .modal-body { padding: 16px; }
   .mc-modal .modal-footer { padding: 12px 16px; }
 }
+
+/* ── Government Post Challenge page ── */
+.post-challenge-page { max-width: 1100px; width: 100%; margin: 0 auto; }
+.post-challenge-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+.post-back-link { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 10px; }
+.post-challenge-form { overflow: hidden; }
+.post-form-section { padding: 22px 24px 6px; border-bottom: 1px solid #E5EAF1; }
+.post-form-section-heading { margin-bottom: 18px; }
+.post-form-section-heading h2 { margin: 0; color: #182230; font-size: 14px; font-weight: 700; }
+.post-form-section-heading p { margin: 4px 0 0; color: #667085; font-size: 12px; line-height: 1.5; }
+.post-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
+.post-form-full { grid-column: 1 / -1; }
+.post-large-textarea { min-height: 118px; }
+.post-required { margin-left: 4px; color: #667085; font-size: 11px; font-weight: 400; }
+.post-field-hint { margin-top: 5px; color: #667085; font-size: 11px; }
+.post-form-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; }
+.post-challenge-success { width: min(100%, 620px); margin: 56px auto; padding: 36px 28px; text-align: center; }
+.post-success-icon { display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 50%; background: #E6F7F5; border: 1px solid #b9e7df; }
+.post-challenge-success h1 { margin: 0; color: #182230; font-size: 20px; font-weight: 700; }
+.post-challenge-success p { margin: 9px 0 22px; color: #667085; font-size: 13px; line-height: 1.6; }
+.post-success-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+
+@media (max-width: 700px) {
+  .post-challenge-heading { flex-direction: column; }
+  .post-form-grid { grid-template-columns: 1fr; gap: 0; }
+  .post-form-full { grid-column: auto; }
+  .post-form-section { padding: 18px 16px 4px; }
+  .post-form-footer { padding: 14px 16px; }
+}
+
+@media (max-width: 480px) {
+  .post-form-footer { flex-direction: column-reverse; }
+  .post-form-footer button { width: 100%; justify-content: center; }
+  .post-challenge-success { margin: 24px auto; padding: 28px 18px; }
+  .post-success-actions { flex-direction: column; }
+  .post-success-actions button { width: 100%; justify-content: center; }
+}

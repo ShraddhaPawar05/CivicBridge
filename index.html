@@ -2098,6 +2098,18 @@ const INITIAL_GOV_CHALLENGES = [
   { id:105, title:'Digital Permit Processing', category:'GovTech', status:'Active', applications:4, deadline:'2026-12-10', description:'Streamline building permit applications with digital workflows and document automation.' },
 ];
 
+const CHALLENGE_CATEGORIES = ['Smart Cities','Environment','Transport','Public Safety','GovTech','Health','Education','Other'];
+const CHALLENGE_DEPARTMENTS = ['Sanitation Department','Water Authority','Transport Department','Urban Planning','Energy Department','Parks & Recreation','Health Department','Education Department','Finance Department','Other'];
+
+function validateChallengeBasics(form) {
+  return {
+    title: form.title.trim().length < 5 ? 'Enter a title with at least 5 characters.' : '',
+    category: form.category ? '' : 'Choose a challenge category.',
+    status: form.status ? '' : 'Choose a status.',
+    deadline: form.deadline ? '' : 'Choose an application deadline.',
+  };
+}
+
 function challengeStatusBadge(status) {
   if (status === 'Under Review') return 'badge-amber';
   if (status === 'Completed') return 'badge-blue';
@@ -2131,10 +2143,7 @@ function ChallengeEditorModal({ challenge, onClose, onSave }) {
   function submit(event) {
     event.preventDefault();
     const nextErrors = {
-      title: form.title.trim().length < 5 ? 'Enter a title with at least 5 characters.' : '',
-      category: form.category ? '' : 'Choose a challenge category.',
-      status: form.status ? '' : 'Choose a status.',
-      deadline: form.deadline ? '' : 'Choose an application deadline.',
+      ...validateChallengeBasics(form),
       description: form.description.length > 300 ? 'Keep the description to 300 characters or fewer.' : '',
     };
     setErrors(nextErrors);
@@ -2161,7 +2170,7 @@ function ChallengeEditorModal({ challenge, onClose, onSave }) {
                 <label className="form-label" htmlFor="mc-category">Category</label>
                 <select id="mc-category" className={`form-select${errors.category ? ' mc-input-error' : ''}`} value={form.category} onChange={update('category')} aria-invalid={!!errors.category}>
                   <option value="">Select category…</option>
-                  {['Smart Cities','Environment','Transport','Public Safety','GovTech','Health','Education','Other'].map(category => <option key={category} value={category}>{category}</option>)}
+                  {CHALLENGE_CATEGORIES.map(category => <option key={category} value={category}>{category}</option>)}
                 </select>
                 {errors.category && <div className="mc-field-error" role="alert">{errors.category}</div>}
               </div>
@@ -2347,6 +2356,173 @@ function MyChallengesPage({ challenges, setChallenges }) {
   );
 }
 
+function PostChallengePage({ onCreate, onCancel, onViewChallenges }) {
+  const [form, setForm] = useState({
+    title:'', description:'', department:'', category:'', technologies:'',
+    budgetMin:'', budgetMax:'', deadline:'', eligibility:'', expectedOutcomes:'', status:'Active',
+  });
+  const [attempted, setAttempted] = useState(false);
+  const [created, setCreated] = useState(null);
+  const technologies = form.technologies.split(/[;,\n]/).map(value => value.trim()).filter(Boolean);
+  const minBudget = Number(form.budgetMin);
+  const maxBudget = Number(form.budgetMax);
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const errors = {
+    ...validateChallengeBasics(form),
+    description: form.description.trim().length < 30 ? 'Add at least 30 characters describing the challenge.' : form.description.length > 1000 ? 'Keep the description to 1,000 characters or fewer.' : '',
+    department: form.department ? '' : 'Choose a department.',
+    technologies: technologies.length === 0 ? 'Add at least one required technology.' : technologies.length > 10 ? 'List no more than 10 technologies.' : '',
+    budgetMin: !form.budgetMin || !Number.isFinite(minBudget) || minBudget <= 0 ? 'Enter a minimum budget greater than zero.' : '',
+    budgetMax: !form.budgetMax || !Number.isFinite(maxBudget) ? 'Enter a maximum budget.' : maxBudget <= minBudget ? 'Maximum budget must be greater than the minimum.' : '',
+    deadline: !form.deadline ? 'Choose an application deadline.' : form.deadline <= today ? 'Choose a future application deadline.' : '',
+    eligibility: form.eligibility.trim().length < 15 ? 'Describe eligibility in at least 15 characters.' : form.eligibility.length > 500 ? 'Keep eligibility to 500 characters or fewer.' : '',
+    expectedOutcomes: form.expectedOutcomes.trim().length < 20 ? 'Describe expected outcomes in at least 20 characters.' : form.expectedOutcomes.length > 500 ? 'Keep expected outcomes to 500 characters or fewer.' : '',
+  };
+
+  const update = key => event => setForm(previous => ({ ...previous, [key]:event.target.value }));
+
+  function submit(event) {
+    event.preventDefault();
+    setAttempted(true);
+    if (Object.values(errors).some(Boolean)) return;
+    const { technologies:technologyInput, budgetMin:minimum, budgetMax:maximum, ...details } = form;
+    const challenge = {
+      ...details,
+      title:form.title.trim(),
+      description:form.description.trim(),
+      requiredTechnologies:technologies,
+      budgetRange:{ minimum:Number(minimum), maximum:Number(maximum) },
+      eligibility:form.eligibility.trim(),
+      expectedOutcomes:form.expectedOutcomes.trim(),
+      applications:0,
+    };
+    onCreate(challenge);
+    setCreated(challenge);
+  }
+
+  if (created) {
+    return (
+      <div className="page-content fade-in post-challenge-page">
+        <section className="card post-challenge-success" aria-live="polite">
+          <div className="post-success-icon"><Icon name="Check" size={24} color="#0F9D8A" /></div>
+          <h1>Challenge posted</h1>
+          <p><strong>{created.title}</strong> is now in your demo challenge list. No data was sent to a server.</p>
+          <div className="post-success-actions">
+            <button className="btn-primary" onClick={onViewChallenges}><Icon name="List" size={15} color="#fff" /> View My Challenges</button>
+            <button className="btn-secondary" onClick={onCancel}>Back to Dashboard</button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-content fade-in post-challenge-page">
+      <div className="post-challenge-heading">
+        <div>
+          <button className="view-link post-back-link" onClick={onCancel}><Icon name="ArrowLeft" size={14} /> Back to Dashboard</button>
+          <h1 className="mc-page-title">Post Challenge</h1>
+          <p className="mc-page-subtitle">Define a public-sector problem and the outcomes you want teams to deliver.</p>
+        </div>
+        <span className="badge badge-teal">New challenge</span>
+      </div>
+
+      <form className="card post-challenge-form" onSubmit={submit} noValidate>
+        <div className="post-form-section">
+          <div className="post-form-section-heading">
+            <h2>Challenge details</h2>
+            <p>Describe the opportunity and where it belongs.</p>
+          </div>
+          <div className="post-form-grid">
+            <div className="form-group post-form-full">
+              <label className="form-label" htmlFor="post-title">Challenge title <span className="post-required">Required</span></label>
+              <input id="post-title" className={`form-input${attempted && errors.title ? ' mc-input-error' : ''}`} value={form.title} onChange={update('title')} maxLength={100} aria-invalid={attempted && !!errors.title} />
+              {attempted && errors.title && <div className="mc-field-error" role="alert">{errors.title}</div>}
+            </div>
+            <div className="form-group post-form-full">
+              <label className="form-label" htmlFor="post-description">Challenge description <span className="post-required">Required</span></label>
+              <textarea id="post-description" className={`form-textarea post-large-textarea${attempted && errors.description ? ' mc-input-error' : ''}`} value={form.description} onChange={update('description')} maxLength={1000} placeholder="Explain the current problem, affected services and constraints…" aria-invalid={attempted && !!errors.description} />
+              <div className="mc-character-count">{form.description.length}/1000</div>
+              {attempted && errors.description && <div className="mc-field-error" role="alert">{errors.description}</div>}
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="post-department">Department <span className="post-required">Required</span></label>
+              <select id="post-department" className={`form-select${attempted && errors.department ? ' mc-input-error' : ''}`} value={form.department} onChange={update('department')} aria-invalid={attempted && !!errors.department}>
+                <option value="">Select department…</option>
+                {CHALLENGE_DEPARTMENTS.map(department => <option key={department} value={department}>{department}</option>)}
+              </select>
+              {attempted && errors.department && <div className="mc-field-error" role="alert">{errors.department}</div>}
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="post-category">Category <span className="post-required">Required</span></label>
+              <select id="post-category" className={`form-select${attempted && errors.category ? ' mc-input-error' : ''}`} value={form.category} onChange={update('category')} aria-invalid={attempted && !!errors.category}>
+                <option value="">Select category…</option>
+                {CHALLENGE_CATEGORIES.map(category => <option key={category} value={category}>{category}</option>)}
+              </select>
+              {attempted && errors.category && <div className="mc-field-error" role="alert">{errors.category}</div>}
+            </div>
+            <div className="form-group post-form-full">
+              <label className="form-label" htmlFor="post-technologies">Required technologies <span className="post-required">Required</span></label>
+              <input id="post-technologies" className={`form-input${attempted && errors.technologies ? ' mc-input-error' : ''}`} value={form.technologies} onChange={update('technologies')} placeholder="e.g. GIS, IoT, machine learning" aria-invalid={attempted && !!errors.technologies} />
+              <div className="post-field-hint">Separate technologies with commas or semicolons.</div>
+              {attempted && errors.technologies && <div className="mc-field-error" role="alert">{errors.technologies}</div>}
+            </div>
+          </div>
+        </div>
+
+        <div className="post-form-section">
+          <div className="post-form-section-heading">
+            <h2>Funding and timeline</h2>
+            <p>Set the available budget and application deadline.</p>
+          </div>
+          <div className="post-form-grid">
+            <div className="form-group">
+              <label className="form-label" htmlFor="post-budget-min">Minimum budget (INR) <span className="post-required">Required</span></label>
+              <input id="post-budget-min" type="number" min="1" step="1000" className={`form-input${attempted && errors.budgetMin ? ' mc-input-error' : ''}`} value={form.budgetMin} onChange={update('budgetMin')} placeholder="e.g. 50000" aria-invalid={attempted && !!errors.budgetMin} />
+              {attempted && errors.budgetMin && <div className="mc-field-error" role="alert">{errors.budgetMin}</div>}
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="post-budget-max">Maximum budget (INR) <span className="post-required">Required</span></label>
+              <input id="post-budget-max" type="number" min="1" step="1000" className={`form-input${attempted && errors.budgetMax ? ' mc-input-error' : ''}`} value={form.budgetMax} onChange={update('budgetMax')} placeholder="e.g. 250000" aria-invalid={attempted && !!errors.budgetMax} />
+              {attempted && errors.budgetMax && <div className="mc-field-error" role="alert">{errors.budgetMax}</div>}
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="post-deadline">Application deadline <span className="post-required">Required</span></label>
+              <input id="post-deadline" type="date" min={today} className={`form-input${attempted && errors.deadline ? ' mc-input-error' : ''}`} value={form.deadline} onChange={update('deadline')} aria-invalid={attempted && !!errors.deadline} />
+              {attempted && errors.deadline && <div className="mc-field-error" role="alert">{errors.deadline}</div>}
+            </div>
+          </div>
+        </div>
+
+        <div className="post-form-section">
+          <div className="post-form-section-heading">
+            <h2>Participation and outcomes</h2>
+            <p>Make the requirements and success measures clear to applicants.</p>
+          </div>
+          <div className="post-form-grid">
+            <div className="form-group post-form-full">
+              <label className="form-label" htmlFor="post-eligibility">Eligibility <span className="post-required">Required</span></label>
+              <textarea id="post-eligibility" className={`form-textarea${attempted && errors.eligibility ? ' mc-input-error' : ''}`} value={form.eligibility} onChange={update('eligibility')} maxLength={500} placeholder="Describe who can apply and any required qualifications…" aria-invalid={attempted && !!errors.eligibility} />
+              {attempted && errors.eligibility && <div className="mc-field-error" role="alert">{errors.eligibility}</div>}
+            </div>
+            <div className="form-group post-form-full">
+              <label className="form-label" htmlFor="post-outcomes">Expected outcomes <span className="post-required">Required</span></label>
+              <textarea id="post-outcomes" className={`form-textarea${attempted && errors.expectedOutcomes ? ' mc-input-error' : ''}`} value={form.expectedOutcomes} onChange={update('expectedOutcomes')} maxLength={500} placeholder="List measurable results or service improvements…" aria-invalid={attempted && !!errors.expectedOutcomes} />
+              {attempted && errors.expectedOutcomes && <div className="mc-field-error" role="alert">{errors.expectedOutcomes}</div>}
+            </div>
+          </div>
+        </div>
+
+        <div className="post-form-footer">
+          <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>
+          <button type="submit" className="btn-primary"><Icon name="Send" size={15} color="#fff" /> Publish Challenge</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function GovInnerPage({ title }) {
   return (
     <div className="page-content fade-in" style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:400 }}>
@@ -2380,6 +2556,12 @@ function GovDashboard({ setPage }) {
           ? <DashboardPage />
           : activeNav === 'challenges'
             ? <MyChallengesPage challenges={govChallenges} setChallenges={setGovChallenges} />
+            : activeNav === 'post'
+              ? <PostChallengePage
+                  onCreate={challenge => setGovChallenges(previous => [{ ...challenge, id:Date.now() }, ...previous])}
+                  onCancel={() => setActiveNav('dashboard')}
+                  onViewChallenges={() => setActiveNav('challenges')}
+                />
             : <GovInnerPage title={GOV_PAGE_TITLES[activeNav] || activeNav} />
         }
       </div>
