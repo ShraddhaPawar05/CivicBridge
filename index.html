@@ -1795,8 +1795,108 @@ function StartupProposalsPage({ startup, proposals, challenges, onBack, onUpdate
   );
 }
 
-function StartupPilotPage({ startup, pilots, challenges, onBack }) {
-  return <div className="page-content fade-in"><div className="welcome-bar"><div><h1 className="mc-page-title">Active Pilot</h1><p className="mc-page-subtitle">Follow the milestones and status of your linked pilot records.</p></div><button className="btn-secondary" onClick={onBack}><Icon name="ArrowLeft" size={14} /> Overview</button></div>{pilots.length?<div className="startup-pilot-list">{pilots.map(pilot=><article className="card startup-pilot-card" key={pilot.id}><div className="startup-pilot-heading"><div><h2>{pilot.name}</h2><span>{challenges.find(challenge=>challenge.id===pilot.challengeId)?.title||startup.name}</span></div><span className={`badge ${pilotStatusBadge(pilot.status)}`}>{pilot.status}</span></div><div className="startup-pilot-progress"><div className="pt-progress-track"><span style={{width:`${pilot.progress}%`}} /></div><strong>{pilot.progress}%</strong></div><div className="startup-pilot-dates">{formatProposalDate(pilot.startDate)} – {formatProposalDate(pilot.endDate)}</div><div className="startup-pilot-milestones">{pilot.milestones.slice(0,3).map(milestone=><div key={milestone.id}><span>{milestone.title}</span><span className={`badge ${pilotStatusBadge(milestone.status)}`}>{milestone.status}</span></div>)}</div></article>)}</div>:<div className="mc-empty-state"><h2>No pilots yet</h2><p>Linked pilot records will appear here.</p></div>}</div>;
+function StartupPilotDetailsModal({ pilot, challenge, startup, onClose, onUpdate }) {
+  const [notes,setNotes]=useState(pilot.notes||'');
+  const [milestones,setMilestones]=useState(()=>pilot.milestones.map(milestone=>({...milestone})));
+  const [errors,setErrors]=useState({});
+  const [saved,setSaved]=useState(false);
+  const completed=pilot.status==='Completed';
+  const progress=completed?100:pilot.progress;
+  const nextMilestone=milestones.find(milestone=>milestone.status!=='Completed');
+  const updateMilestone=(id,status)=>{
+    setMilestones(previous=>previous.map(milestone=>milestone.id===id?{...milestone,status}:milestone));
+    setErrors(previous=>({...previous,notes:'',milestones:''}));
+    setSaved(false);
+  };
+
+  useEffect(()=>{
+    const onKey=event=>{if(event.key==='Escape')onClose();};
+    document.addEventListener('keydown',onKey);
+    return ()=>document.removeEventListener('keydown',onKey);
+  },[onClose]);
+
+  function save(event) {
+    event.preventDefault();
+    const nextErrors={};
+    if(notes.trim()&&notes.trim().length<10)nextErrors.notes='Enter at least 10 characters or leave the notes blank.';
+    if(!milestones.length)nextErrors.milestones='This pilot has no milestones to update.';
+    setErrors(nextErrors);
+    if(Object.keys(nextErrors).length)return;
+    const allComplete=milestones.every(milestone=>milestone.status==='Completed');
+    const nextStatus=allComplete?'Completed':milestones.some(milestone=>milestone.status==='Delayed')?'Delayed':milestones.some(milestone=>milestone.status==='In Progress')?'In Progress':'Planned';
+    const nextProgress=allComplete?100:Math.round(milestones.filter(milestone=>milestone.status==='Completed').length/milestones.length*100);
+    onUpdate({...pilot,milestones,notes:notes.trim(),status:nextStatus,progress:nextProgress});
+    setSaved(true);
+  }
+
+  return (
+    <div className="modal-overlay startup-pilot-modal" onClick={event=>{if(event.target===event.currentTarget)onClose();}}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="startup-pilot-detail-title">
+        <div className="modal-header"><div><span className="modal-title">Pilot details</span><span className="proposal-modal-subtitle">{challenge?.title||'Challenge unavailable'}</span></div><button className="icon-btn" onClick={onClose} aria-label="Close pilot details"><Icon name="X" size={16} /></button></div>
+        <div className="modal-body">
+          {saved&&<div className="mc-notice" role="status"><Icon name="CheckCircle" size={15} color="#0F9D8A" /> Pilot progress saved in this demo session.</div>}
+          <div className="startup-pilot-detail-heading"><div><h2 id="startup-pilot-detail-title">{pilot.name}</h2><span>{pilot.department} · {startup?.name||'Startup unavailable'}</span></div><span className={`badge ${pilotStatusBadge(pilot.status)}`}>{pilot.status}</span></div>
+          <div className="startup-proposal-linked-challenge"><span>Related challenge</span><strong>{challenge?.title||'Challenge unavailable'}</strong>{challenge&&<small>{challenge.category} · {challenge.dept}</small>}</div>
+          <section className="startup-proposal-detail-section"><h3>Objectives</h3><p>{pilot.objectives||'No objectives recorded.'}</p></section>
+          <section className="startup-pilot-progress-section"><h3>Progress</h3><div className="pt-progress-track"><span style={{width:`${progress}%`}} /></div><div className="pt-progress-caption"><strong>{progress}%</strong><span>Expected completion {formatProposalDate(pilot.endDate)}</span></div></section>
+          <section className="startup-pilot-milestone-section"><h3>Milestones and due dates</h3>{milestones.map((milestone,index)=><div className="startup-pilot-edit-milestone" key={milestone.id}><div className={`pt-milestone-marker${milestone.status==='Completed'?' is-complete':milestone.status==='Delayed'?' is-delayed':''}`}>{milestone.status==='Completed'?<Icon name="Check" size={11} color="#fff" />:index+1}</div><div className="startup-pilot-edit-copy"><strong>{milestone.title}</strong><span>{formatProposalDate(milestone.dueDate)}</span></div><span className={`badge ${pilotStatusBadge(milestone.status)}`}>{milestone.status}</span></div>)}</section>
+          {!completed
+            ? <form id="startup-pilot-progress-form" onSubmit={save} noValidate>
+                <section className="startup-pilot-milestone-section"><h3>Update milestone status</h3>{milestones.map(milestone=><div className="startup-pilot-status-row" key={milestone.id}><label htmlFor={`startup-pilot-${pilot.id}-${milestone.id}`}>{milestone.title}<span>Due {formatProposalDate(milestone.dueDate)}</span></label><select id={`startup-pilot-${pilot.id}-${milestone.id}`} className="form-select" aria-label={`Milestone status: ${milestone.title}`} value={milestone.status} onChange={event=>updateMilestone(milestone.id,event.target.value)}><option>Planned</option><option>In Progress</option><option>Delayed</option><option>Completed</option></select></div>)}</section>
+                {errors.milestones&&<span className="mc-field-error" role="alert">{errors.milestones}</span>}
+                <div className="form-group startup-pilot-notes"><label className="form-label" htmlFor="startup-pilot-notes">Progress notes</label><textarea id="startup-pilot-notes" className={`form-textarea${errors.notes?' mc-input-error':''}`} value={notes} onChange={event=>{setNotes(event.target.value);setErrors(previous=>({...previous,notes:''}));setSaved(false);}} maxLength={500} placeholder="Record progress updates for your government partner…" />{errors.notes&&<span className="mc-field-error" role="alert">{errors.notes}</span>}<span className="startup-pilot-notes-count">{notes.length}/500</span></div>
+              </form>
+            : <><section className="startup-proposal-detail-section"><h3>Progress notes</h3><p>{pilot.notes||'No notes recorded.'}</p></section><p className="startup-pilot-readonly" role="status">This pilot is completed and its milestones and notes are read-only.</p></>}
+          {!completed&&saved&&<div className="startup-pilot-next-milestone"><strong>Next milestone</strong><span>{nextMilestone?.title||'All milestones complete'}</span></div>}
+        </div>
+        <div className="modal-footer">{completed
+          ? <button type="button" className="btn-secondary" onClick={onClose}>Close</button>
+          : <><button type="button" className="btn-secondary" onClick={onClose}>Close</button><button type="submit" form="startup-pilot-progress-form" className="btn-primary"><Icon name="Save" size={14} color="#fff" /> Save Progress</button></>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StartupPilotPage({ startup, pilots, challenges, onBack, onUpdatePilot }) {
+  const [query,setQuery]=useState('');
+  const [statusFilter,setStatusFilter]=useState('All');
+  const [selectedPilotId,setSelectedPilotId]=useState(null);
+  const statuses=[...new Set(pilots.map(pilot=>pilot.status))].sort();
+  const term=query.trim().toLowerCase();
+  const filtered=pilots.filter(pilot=>{
+    const challenge=challenges.find(item=>item.id===pilot.challengeId)||INITIAL_GOV_CHALLENGES.find(item=>item.id===pilot.challengeId);
+    return (!term||`${pilot.name} ${pilot.department||''} ${challenge?.title||''} ${pilot.objectives||''} ${pilot.notes||''}`.toLowerCase().includes(term))&&(statusFilter==='All'||pilot.status===statusFilter);
+  });
+  const activeCount=pilots.filter(pilot=>['In Progress','Delayed'].includes(pilot.status)).length;
+  const completedCount=pilots.filter(pilot=>pilot.status==='Completed').length;
+  const averageProgress=pilots.length?Math.round(pilots.reduce((total,pilot)=>total+(pilot.status==='Completed'?100:pilot.progress),0)/pilots.length):0;
+  const selectedPilot=pilots.find(pilot=>pilot.id===selectedPilotId);
+
+  return (
+    <div className="page-content fade-in startup-pilots-page">
+      <div className="welcome-bar"><div><h1 className="mc-page-title">Active Pilot</h1><p className="mc-page-subtitle">Track milestones and share progress with your government partners.</p></div><button className="btn-secondary" onClick={onBack}><Icon name="ArrowLeft" size={14} /> Overview</button></div>
+      <div className="summary-grid startup-pilot-summary">
+        {[{label:'Total Pilots',value:pilots.length,icon:'Rocket',color:'#173C70',bg:'#EBF2FF'},{label:'Active Pilots',value:activeCount,icon:'Activity',color:'#b45309',bg:'#FFF4E5'},{label:'Completed',value:completedCount,icon:'CheckCircle',color:'#0F9D8A',bg:'#E6F7F5'},{label:'Average Progress',value:`${averageProgress}%`,icon:'TrendingUp',color:'#6d28d9',bg:'#F3EEFF'}].map(card=><div className="summary-card" key={card.label}><div className="summary-icon" style={{background:card.bg}}><Icon name={card.icon} size={19} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}
+      </div>
+      <div className="startup-pilot-toolbar"><div className="search-wrap"><span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span><input aria-label="Search pilots" placeholder="Search pilot, challenge, or department…" value={query} onChange={event=>setQuery(event.target.value)} /></div><select className="form-select" aria-label="Filter pilots by status" value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}><option value="All">All statuses</option>{statuses.map(status=><option key={status}>{status}</option>)}</select><span className="startup-pilot-results">{filtered.length} of {pilots.length} pilots</span></div>
+      {filtered.length
+        ? <div className="startup-pilot-list">{filtered.map(pilot=>{
+            const challenge=challenges.find(item=>item.id===pilot.challengeId)||INITIAL_GOV_CHALLENGES.find(item=>item.id===pilot.challengeId);
+            const nextMilestone=pilot.milestones.find(milestone=>milestone.status!=='Completed');
+            const progress=pilot.status==='Completed'?100:pilot.progress;
+            return <article className="card startup-pilot-card" key={pilot.id}>
+              <div className="startup-pilot-heading"><div><h2>{pilot.name}</h2><span>{challenge?.title||'Challenge unavailable'}</span></div><span className={`badge ${pilotStatusBadge(pilot.status)}`}>{pilot.status}</span></div>
+              <div className="startup-pilot-department"><Icon name="Building2" size={13} />{pilot.department||'Department unavailable'}</div>
+              <div className="startup-pilot-progress"><div className="pt-progress-track"><span style={{width:`${progress}%`}} /></div><strong>{progress}%</strong></div>
+              <div className="startup-pilot-card-meta"><span><small>Next milestone</small><strong>{pilot.status==='Completed'?'All milestones complete':nextMilestone?.title||'No milestones recorded'}</strong>{nextMilestone&&pilot.status!=='Completed'&&<small>Due {formatProposalDate(nextMilestone.dueDate)}</small>}</span><span><small>Expected completion</small><strong>{formatProposalDate(pilot.endDate)}</strong></span></div>
+              <div className="startup-pilot-card-footer"><span>{pilot.milestones.filter(milestone=>milestone.status==='Completed').length} of {pilot.milestones.length} milestones complete</span><button className="btn-secondary" onClick={()=>setSelectedPilotId(pilot.id)}><Icon name="Eye" size={14} /> Details</button></div>
+            </article>;
+          })}</div>
+        : <div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="SearchX" size={22} color="#173C70" /></div><h2>{pilots.length?'No matching pilots':'No pilots yet'}</h2><p>{pilots.length?'Try another search term or status filter.':'No pilot records are currently linked to '+startup.name+'.'}</p>{pilots.length&&<button className="btn-secondary" onClick={()=>{setQuery('');setStatusFilter('All');}}>Clear filters</button>}</div>}
+      {selectedPilot&&<StartupPilotDetailsModal key={selectedPilot.id} pilot={selectedPilot} challenge={challenges.find(item=>item.id===selectedPilot.challengeId)||INITIAL_GOV_CHALLENGES.find(item=>item.id===selectedPilot.challengeId)} startup={startup} onClose={()=>setSelectedPilotId(null)} onUpdate={onUpdatePilot} />}
+    </div>
+  );
 }
 
 // ── Startup Dashboard ─────────────────────────────────────────────────────────
@@ -1804,6 +1904,7 @@ function StartupDashboard({ setPage }) {
   const [activeNav, setActiveNav] = useState('overview');
   const [savedChallengeIds,setSavedChallengeIds] = useState([]);
   const [startupProposals,setStartupProposals] = useState(() => INITIAL_GOV_PROPOSALS.filter(proposal => proposal.startupId === 2));
+  const [startupPilotRecords,setStartupPilotRecords] = useState(() => INITIAL_GOV_PILOTS.filter(pilot => pilot.startupId === 2).map(pilot => ({ ...pilot, milestones:pilot.milestones.map(milestone => ({ ...milestone })) })));
   const navItems = [
     { id:'overview',    label:'Overview',          icon:'LayoutDashboard' },
     { id:'challenges',  label:'Browse Challenges', icon:'Search' },
@@ -1814,7 +1915,7 @@ function StartupDashboard({ setPage }) {
   ];
   const startup = PUBLIC_STARTUPS.find(item => item.id === 2) || PUBLIC_STARTUPS[0];
   const startupMatches = INITIAL_GOV_MATCHES.filter(match => match.id === startup.id);
-  const startupPilots = INITIAL_GOV_PILOTS.filter(pilot => pilot.startupId === startup.id);
+  const startupPilots = startupPilotRecords.filter(pilot => pilot.startupId === startup.id);
   const activePilots = startupPilots.filter(pilot => ['In Progress','Delayed'].includes(pilot.status));
   const startupTags = new Set(startup.tags.map(tag => tag.toLowerCase()));
   const recommendedChallenges = PUBLIC_CHALLENGES.map(challenge => {
@@ -1881,7 +1982,7 @@ function StartupDashboard({ setPage }) {
             : activeNav === 'proposals'
               ? <StartupProposalsPage startup={startup} proposals={startupProposals} challenges={PUBLIC_CHALLENGES} onBack={() => setActiveNav('overview')} onUpdateProposal={updated=>setStartupProposals(previous=>previous.map(proposal=>proposal.id===updated.id?updated:proposal))} />
               : activeNav === 'pilot'
-                ? <StartupPilotPage startup={startup} pilots={startupPilots} challenges={PUBLIC_CHALLENGES} onBack={() => setActiveNav('overview')} />
+                ? <StartupPilotPage startup={startup} pilots={startupPilots} challenges={PUBLIC_CHALLENGES} onBack={() => setActiveNav('overview')} onUpdatePilot={updated=>setStartupPilotRecords(previous=>previous.map(pilot=>pilot.id===updated.id?updated:pilot))} />
                 : activeNav === 'profile'
                   ? <div className="page-content fade-in"><div className="welcome-bar"><div><h1 className="mc-page-title">Company Profile</h1><p className="mc-page-subtitle">Startup details from the existing demo registry.</p></div><button className="btn-secondary" onClick={() => setActiveNav('overview')}><Icon name="ArrowLeft" size={14} /> Overview</button></div><section className="card startup-profile-card"><div className="startup-profile-heading"><div className="startup-avatar" style={{background:startup.color}}>{startup.initials}</div><div><h2>{startup.name}</h2><span>{startup.location} · Founded {startup.founded}</span></div></div><p>{startup.desc}</p><div className="tag-list">{startup.tags.map(tag=><span className="tag" key={tag}>{tag}</span>)}</div></section></div>
                   : <div className="page-content fade-in"><div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="Settings" size={22} color="#173C70" /></div><h2>Settings</h2><p>This section is not part of the current demo overview.</p><button className="btn-secondary" onClick={() => setActiveNav('overview')}>Back to Overview</button></div></div>
