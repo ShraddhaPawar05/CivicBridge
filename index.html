@@ -237,12 +237,12 @@ function Icon({ name, size = 16, color = 'currentColor' }) {
 
 // ── Shared data ──────────────────────────────────────────────────────────────
 const PUBLIC_CHALLENGES = [
-  { id:1, title:'Smart Waste Collection', dept:'Sanitation Department', deadline:'30 Oct 2026', stage:'AI Matching', badge:'badge-blue', desc:'Optimize waste collection routes using AI and IoT sensors to reduce operational costs and improve city-wide efficiency.', tags:['AI','IoT','Smart City'] },
-  { id:2, title:'Urban Water Quality Monitoring', dept:'Water Authority', deadline:'15 Nov 2026', stage:'Evaluation', badge:'badge-amber', desc:'Deploy real-time water quality sensors and analytics to monitor contamination levels across the municipal supply network.', tags:['IoT','Analytics','Environment'] },
-  { id:3, title:'Traffic Congestion Monitoring', dept:'Transport Department', deadline:'20 Nov 2026', stage:'Pilot', badge:'badge-teal', desc:'Implement AI-powered traffic monitoring and adaptive signal control to reduce peak-hour congestion by 30%.', tags:['AI','Computer Vision','Transport'] },
-  { id:4, title:'Public Park Safety System', dept:'Parks & Recreation', deadline:'10 Dec 2026', stage:'Open', badge:'badge-purple', desc:'Deploy smart surveillance and incident-detection systems across public parks to improve citizen safety.', tags:['IoT','AI','Safety'] },
-  { id:5, title:'Digital Permit Processing', dept:'Urban Planning', deadline:'05 Jan 2027', stage:'Open', badge:'badge-purple', desc:'Automate building permit applications and approvals using AI document processing to cut processing time by 60%.', tags:['AI','Automation','GovTech'] },
-  { id:6, title:'Energy Grid Optimisation', dept:'Energy Department', deadline:'20 Jan 2027', stage:'Open', badge:'badge-purple', desc:'Use predictive analytics to balance energy load across the municipal grid and reduce peak consumption.', tags:['Analytics','Energy','Cloud'] },
+  { id:1, title:'Smart Waste Collection', dept:'Sanitation Department', category:'Smart Cities', deadline:'30 Oct 2026', stage:'AI Matching', badge:'badge-blue', desc:'Optimize waste collection routes using AI and IoT sensors to reduce operational costs and improve city-wide efficiency.', tags:['AI','IoT','Smart City'] },
+  { id:2, title:'Urban Water Quality Monitoring', dept:'Water Authority', category:'Environment', deadline:'15 Nov 2026', stage:'Evaluation', badge:'badge-amber', desc:'Deploy real-time water quality sensors and analytics to monitor contamination levels across the municipal supply network.', tags:['IoT','Analytics','Environment'] },
+  { id:3, title:'Traffic Congestion Monitoring', dept:'Transport Department', category:'Transport', deadline:'20 Nov 2026', stage:'Pilot', badge:'badge-teal', desc:'Implement AI-powered traffic monitoring and adaptive signal control to reduce peak-hour congestion by 30%.', tags:['AI','Computer Vision','Transport'] },
+  { id:4, title:'Public Park Safety System', dept:'Parks & Recreation', category:'Public Safety', deadline:'10 Dec 2026', stage:'Open', badge:'badge-purple', desc:'Deploy smart surveillance and incident-detection systems across public parks to improve citizen safety.', tags:['IoT','AI','Safety'] },
+  { id:5, title:'Digital Permit Processing', dept:'Urban Planning', category:'GovTech', deadline:'05 Jan 2027', stage:'Open', badge:'badge-purple', desc:'Automate building permit applications and approvals using AI document processing to cut processing time by 60%.', tags:['AI','Automation','GovTech'] },
+  { id:6, title:'Energy Grid Optimisation', dept:'Energy Department', category:'Energy', deadline:'20 Jan 2027', stage:'Open', badge:'badge-purple', desc:'Use predictive analytics to balance energy load across the municipal grid and reduce peak consumption.', tags:['Analytics','Energy','Cloud'] },
 ];
 
 const PUBLIC_STARTUPS = [
@@ -1513,6 +1513,35 @@ function RoleSelectPage({ setPage }) {
   );
 }
 
+function StartupDashboardOverview({ startup, stats, recommendedChallenges, recentActivity, onNavigate }) {
+  return (
+    <div className="page-content fade-in startup-overview">
+      <div className="welcome-bar"><div><h1 className="startup-overview-title">Welcome back, {startup.name}</h1><p className="startup-overview-subtitle">Explore matched public challenges, manage proposals, and follow your pilot activity.</p></div><button className="btn-primary" onClick={() => onNavigate('challenges')}><Icon name="Search" size={15} color="#fff" /> Browse Challenges</button></div>
+      <div className="summary-grid startup-summary-grid">{stats.map(card=><div key={card.label} className="summary-card"><div className="summary-icon" style={{background:card.bg}}><Icon name={card.icon} size={20} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}</div>
+      <div className="dashboard-grid startup-overview-grid">
+        <section className="card startup-recommendations"><div className="card-header"><div><span className="card-title">Recommended Challenges</span><p className="startup-card-subtitle">Based on shared technologies and existing match records.</p></div><button className="btn-secondary" style={{fontSize:12,padding:'5px 12px'}} onClick={() => onNavigate('challenges')}>View All</button></div><div className="table-wrap"><table className="startup-challenge-table"><thead><tr>{['Challenge','Category','Department','Status','Technology fit','Deadline'].map(label=><th key={label}>{label}</th>)}</tr></thead><tbody>{recommendedChallenges.map(challenge=><tr key={challenge.id}><td className="startup-challenge-title">{challenge.title}<span>{challenge.sharedTags.join(' · ')}</span></td><td>{challenge.category}</td><td>{challenge.dept}</td><td><span className={`badge ${challenge.badge}`}>{challenge.stage}</span></td><td>{challenge.matchScore?<span className="badge badge-teal">{challenge.matchScore}% match</span>:<span className="startup-fit-count">{challenge.sharedTags.length} shared technologies</span>}</td><td>{challenge.deadline}</td></tr>)}</tbody></table>{!recommendedChallenges.length&&<div className="mc-empty-state"><h2>No recommendations yet</h2><p>Challenges with matching technologies will appear here.</p></div>}</div></section>
+        <section className="card startup-activity"><div className="card-header"><div><span className="card-title">Recent Activity</span><p className="startup-card-subtitle">Recorded proposal submissions and pilot start dates.</p></div></div>{recentActivity.length?<div className="startup-activity-list">{recentActivity.map(activity=><div className="startup-activity-row" key={activity.id}><div className="startup-activity-icon"><Icon name={activity.icon} size={15} color="#173C70" /></div><div className="startup-activity-copy"><strong>{activity.title}</strong><span>{activity.detail}</span></div><span className={`badge ${activity.badge}`}>{activity.status}</span><time>{formatProposalDate(activity.date)}</time></div>)}</div>:<div className="startup-empty-inline">No proposal or pilot activity is recorded yet.</div>}</section>
+      </div>
+      <section className="card startup-quick-card"><div className="card-header"><span className="card-title">Quick Actions</span></div><div className="startup-quick-actions"><button className="btn-secondary" onClick={() => onNavigate('challenges')}><Icon name="Search" size={15} /> Browse Challenges<Icon name="ArrowRight" size={14} /></button><button className="btn-secondary" onClick={() => onNavigate('proposals')}><Icon name="FileText" size={15} /> View Proposals<Icon name="ArrowRight" size={14} /></button><button className="btn-secondary" onClick={() => onNavigate('pilot')}><Icon name="Rocket" size={15} /> View Active Pilot<Icon name="ArrowRight" size={14} /></button></div></section>
+    </div>
+  );
+}
+
+function StartupChallengesPage({ startup, challenges, matches, onBack }) {
+  const [query, setQuery] = useState('');
+  const startupTags = new Set(startup.tags.map(tag=>tag.toLowerCase()));
+  const filtered = challenges.map(challenge=>({ ...challenge, sharedTags:challenge.tags.filter(tag=>startupTags.has(tag.toLowerCase())), match:matches.find(item=>item.challengeId===challenge.id) })).filter(challenge=>`${challenge.title} ${challenge.dept} ${challenge.category} ${challenge.tags.join(' ')}`.toLowerCase().includes(query.trim().toLowerCase()));
+  return <div className="page-content fade-in"><div className="welcome-bar"><div><h1 className="mc-page-title">Browse Challenges</h1><p className="mc-page-subtitle">Explore government opportunities that share your technology capabilities.</p></div><button className="btn-secondary" onClick={onBack}><Icon name="ArrowLeft" size={14} /> Overview</button></div><div className="search-wrap startup-challenge-search"><span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span><input aria-label="Search challenges" placeholder="Search title, department, or technology…" value={query} onChange={event=>setQuery(event.target.value)} /></div><div className="card startup-browse-card"><div className="table-wrap"><table className="startup-challenge-table"><thead><tr>{['Challenge','Category','Department','Status','Deadline','Technology fit'].map(label=><th key={label}>{label}</th>)}</tr></thead><tbody>{filtered.map(challenge=><tr key={challenge.id}><td className="startup-challenge-title">{challenge.title}<span>{challenge.desc}</span></td><td>{challenge.category}</td><td>{challenge.dept}</td><td><span className={`badge ${challenge.badge}`}>{challenge.stage}</span></td><td>{challenge.deadline}</td><td>{challenge.match?<span className="badge badge-teal">{challenge.match.matchScore}% match</span>:challenge.sharedTags.length?`${challenge.sharedTags.length} shared`:'Related domain'}</td></tr>)}</tbody></table>{!filtered.length&&<div className="mc-empty-state"><h2>No challenges found</h2><p>Try a different title, department, or technology.</p><button className="btn-secondary" onClick={()=>setQuery('')}>Clear search</button></div>}</div></div></div>;
+}
+
+function StartupProposalsPage({ startup, proposals, challenges, onBack }) {
+  return <div className="page-content fade-in"><div className="welcome-bar"><div><h1 className="mc-page-title">My Proposals</h1><p className="mc-page-subtitle">Track proposal decisions for {startup.name}.</p></div><button className="btn-secondary" onClick={onBack}><Icon name="ArrowLeft" size={14} /> Overview</button></div><div className="card startup-browse-card"><div className="table-wrap"><table className="startup-challenge-table"><thead><tr>{['Proposal','Related challenge','Submitted','Status','Expected outcomes'].map(label=><th key={label}>{label}</th>)}</tr></thead><tbody>{proposals.map(proposal=>{const challenge=challenges.find(item=>item.id===proposal.challengeId);return <tr key={proposal.id}><td className="startup-challenge-title">{proposal.title}<span>{proposal.description}</span></td><td>{challenge?.title||'Challenge unavailable'}</td><td>{formatProposalDate(proposal.submissionDate)}</td><td><span className={`badge ${proposal.status==='Accepted'?'badge-teal':proposal.status==='Pending Review'?'badge-amber':proposal.status==='Rejected'?'pr-status-rejected':'pr-status-revisions'}`}>{proposal.status}</span></td><td>{proposal.expectedOutcomes}</td></tr>;})}</tbody></table>{!proposals.length&&<div className="mc-empty-state"><h2>No proposals yet</h2><p>Your submitted proposals will appear here.</p></div>}</div></div></div>;
+}
+
+function StartupPilotPage({ startup, pilots, challenges, onBack }) {
+  return <div className="page-content fade-in"><div className="welcome-bar"><div><h1 className="mc-page-title">Active Pilot</h1><p className="mc-page-subtitle">Follow the milestones and status of your linked pilot records.</p></div><button className="btn-secondary" onClick={onBack}><Icon name="ArrowLeft" size={14} /> Overview</button></div>{pilots.length?<div className="startup-pilot-list">{pilots.map(pilot=><article className="card startup-pilot-card" key={pilot.id}><div className="startup-pilot-heading"><div><h2>{pilot.name}</h2><span>{challenges.find(challenge=>challenge.id===pilot.challengeId)?.title||startup.name}</span></div><span className={`badge ${pilotStatusBadge(pilot.status)}`}>{pilot.status}</span></div><div className="startup-pilot-progress"><div className="pt-progress-track"><span style={{width:`${pilot.progress}%`}} /></div><strong>{pilot.progress}%</strong></div><div className="startup-pilot-dates">{formatProposalDate(pilot.startDate)} – {formatProposalDate(pilot.endDate)}</div><div className="startup-pilot-milestones">{pilot.milestones.slice(0,3).map(milestone=><div key={milestone.id}><span>{milestone.title}</span><span className={`badge ${pilotStatusBadge(milestone.status)}`}>{milestone.status}</span></div>)}</div></article>)}</div>:<div className="mc-empty-state"><h2>No pilots yet</h2><p>Linked pilot records will appear here.</p></div>}</div>;
+}
+
 // ── Startup Dashboard ─────────────────────────────────────────────────────────
 function StartupDashboard({ setPage }) {
   const [activeNav, setActiveNav] = useState('overview');
@@ -1524,14 +1553,31 @@ function StartupDashboard({ setPage }) {
     { id:'profile',     label:'Company Profile',   icon:'Building2' },
     { id:'settings',    label:'Settings',          icon:'Settings' },
   ];
+  const startup = PUBLIC_STARTUPS.find(item => item.id === 2) || PUBLIC_STARTUPS[0];
+  const startupMatches = INITIAL_GOV_MATCHES.filter(match => match.id === startup.id);
+  const startupProposals = INITIAL_GOV_PROPOSALS.filter(proposal => proposal.startupId === startup.id);
+  const startupPilots = INITIAL_GOV_PILOTS.filter(pilot => pilot.startupId === startup.id);
+  const activePilots = startupPilots.filter(pilot => ['In Progress','Delayed'].includes(pilot.status));
+  const startupTags = new Set(startup.tags.map(tag => tag.toLowerCase()));
+  const recommendedChallenges = PUBLIC_CHALLENGES.map(challenge => {
+    const sharedTags = challenge.tags.filter(tag => startupTags.has(tag.toLowerCase()));
+    const match = startupMatches.find(item => item.challengeId === challenge.id);
+    return { ...challenge, sharedTags, matchScore:match?.matchScore || null };
+  }).filter(challenge => challenge.sharedTags.length)
+    .sort((left,right) => Number(!!right.matchScore)-Number(!!left.matchScore) || right.sharedTags.length-left.sharedTags.length)
+    .slice(0,4);
+  const recentActivity = [
+    ...startupProposals.map(proposal => ({ id:`proposal-${proposal.id}`, date:proposal.submissionDate, icon:'FileText', title:'Proposal submitted', detail:proposal.title, status:proposal.status, badge:proposal.status==='Accepted'?'badge-teal':proposal.status==='Pending Review'?'badge-amber':'badge-blue' })),
+    ...startupPilots.map(pilot => ({ id:`pilot-${pilot.id}`, date:pilot.startDate, icon:'Rocket', title:'Pilot record', detail:pilot.name, status:pilot.status, badge:pilot.status==='Completed'?'badge-teal':pilot.status==='Delayed'?'badge-amber':'badge-blue' })),
+  ].sort((left,right) => right.date.localeCompare(left.date)).slice(0,4);
   const stats = [
-    { value:'06', label:'Challenges Applied',  icon:'FileText',  bg:'#EBF2FF', color:'#173C70' },
-    { value:'02', label:'Proposals Submitted', icon:'Inbox',     bg:'#E6F7F5', color:'#0F9D8A' },
-    { value:'01', label:'Active Pilot',        icon:'Rocket',    bg:'#F3EEFF', color:'#6d28d9' },
-    { value:'88%', label:'Avg Match Score',    icon:'TrendingUp',bg:'#FFF4E5', color:'#b45309' },
+    { value:startupMatches.length, label:'Matched Challenges', icon:'Target', bg:'#EBF2FF', color:'#173C70' },
+    { value:startupProposals.length, label:'Submitted Proposals', icon:'FileText', bg:'#E6F7F5', color:'#0F9D8A' },
+    { value:startupProposals.filter(proposal => proposal.status === 'Accepted').length, label:'Accepted Proposals', icon:'CheckCircle', bg:'#FFF4E5', color:'#b45309' },
+    { value:activePilots.length, label:'Active Pilots', icon:'Rocket', bg:'#F3EEFF', color:'#6d28d9' },
   ];
   return (
-    <div className="app-shell">
+    <div className="app-shell startup-shell">
       <aside className="sidebar">
         <div className="sidebar-logo">
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -1563,58 +1609,24 @@ function StartupDashboard({ setPage }) {
             <div style={{ fontSize:11, color:'#667085' }}>Startup Portal / {navItems.find(n=>n.id===activeNav)?.label}</div>
             <div style={{ fontSize:15, fontWeight:700, color:'#182230' }}>Startup Dashboard</div>
           </div>
-          <div className="avatar" style={{ background:'#0F9D8A' }}>UA</div>
+          <div className="avatar" style={{ background:startup.color }}>{startup.initials}</div>
           <div>
-            <div style={{ fontSize:12, fontWeight:600, color:'#182230' }}>UrbanAI Labs</div>
+            <div style={{ fontSize:12, fontWeight:600, color:'#182230' }}>{startup.name}</div>
             <div style={{ fontSize:11, color:'#667085' }}>Startup</div>
           </div>
         </header>
-        <div className="page-content fade-in">
-          <div className="welcome-bar">
-            <div>
-              <h1 style={{ fontSize:20, fontWeight:700, color:'#182230', margin:0 }}>Welcome back, UrbanAI Labs</h1>
-              <p style={{ fontSize:13, color:'#667085', marginTop:4, marginBottom:0 }}>Browse open challenges, manage your proposals and track your active pilot.</p>
-            </div>
-            <button className="btn-primary" onClick={() => setActiveNav('challenges')}>
-              <Icon name="Search" size={15} color="#fff" /> Browse Challenges
-            </button>
-          </div>
-          <div className="summary-grid">
-            {stats.map(c => (
-              <div key={c.label} className="summary-card">
-                <div className="summary-icon" style={{ background:c.bg }}>
-                  <Icon name={c.icon} size={20} color={c.color} />
-                </div>
-                <div>
-                  <div className="summary-value">{c.value}</div>
-                  <div className="summary-label">{c.label}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="card" style={{ marginBottom:20 }}>
-            <div className="card-header">
-              <span className="card-title">Recommended Challenges</span>
-              <button className="btn-secondary" style={{ fontSize:12, padding:'5px 12px' }} onClick={() => setActiveNav('challenges')}>View All</button>
-            </div>
-            <div className="table-wrap">
-              <table>
-                <thead><tr>{['Challenge','Department','Match','Deadline','Action'].map(h=><th key={h}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {PUBLIC_CHALLENGES.slice(0,3).map(c => (
-                    <tr key={c.id}>
-                      <td style={{ fontWeight:500 }}>{c.title}</td>
-                      <td style={{ color:'#667085' }}>{c.dept}</td>
-                      <td><span className="badge badge-teal">{90 - c.id * 2}% match</span></td>
-                      <td style={{ color:'#667085' }}>{c.deadline}</td>
-                      <td><button className="view-link">Apply</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        {activeNav === 'overview'
+          ? <StartupDashboardOverview startup={startup} stats={stats} recommendedChallenges={recommendedChallenges} recentActivity={recentActivity} onNavigate={setActiveNav} />
+          : activeNav === 'challenges'
+            ? <StartupChallengesPage startup={startup} challenges={PUBLIC_CHALLENGES} matches={startupMatches} onBack={() => setActiveNav('overview')} />
+            : activeNav === 'proposals'
+              ? <StartupProposalsPage startup={startup} proposals={startupProposals} challenges={PUBLIC_CHALLENGES} onBack={() => setActiveNav('overview')} />
+              : activeNav === 'pilot'
+                ? <StartupPilotPage startup={startup} pilots={startupPilots} challenges={PUBLIC_CHALLENGES} onBack={() => setActiveNav('overview')} />
+                : activeNav === 'profile'
+                  ? <div className="page-content fade-in"><div className="welcome-bar"><div><h1 className="mc-page-title">Company Profile</h1><p className="mc-page-subtitle">Startup details from the existing demo registry.</p></div><button className="btn-secondary" onClick={() => setActiveNav('overview')}><Icon name="ArrowLeft" size={14} /> Overview</button></div><section className="card startup-profile-card"><div className="startup-profile-heading"><div className="startup-avatar" style={{background:startup.color}}>{startup.initials}</div><div><h2>{startup.name}</h2><span>{startup.location} · Founded {startup.founded}</span></div></div><p>{startup.desc}</p><div className="tag-list">{startup.tags.map(tag=><span className="tag" key={tag}>{tag}</span>)}</div></section></div>
+                  : <div className="page-content fade-in"><div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="Settings" size={22} color="#173C70" /></div><h2>Settings</h2><p>This section is not part of the current demo overview.</p><button className="btn-secondary" onClick={() => setActiveNav('overview')}>Back to Overview</button></div></div>
+        }
       </div>
     </div>
   );
