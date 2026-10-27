@@ -4647,6 +4647,26 @@ tbody td {
 .startup-profile-heading h2 { margin: 0; color: #182230; font-size: 16px; }
 .startup-profile-heading span { display: block; margin-top: 4px; color: #667085; font-size: 11px; }
 .startup-profile-card > p { margin: 16px 0; color: #667085; font-size: 13px; line-height: 1.6; }
+.startup-company-profile-page, .startup-settings-page { width: 100%; max-width: 1040px; margin: 0 auto; }
+.startup-profile-card { max-width: 760px; }
+.startup-profile-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; margin-top: 16px; }
+.startup-profile-detail { min-width: 0; padding: 10px 12px; border: 1px solid #E5EAF1; border-radius: 8px; background: #FAFBFD; }
+.startup-profile-detail > span, .startup-profile-detail > strong { display: block; }
+.startup-profile-detail > span { margin-bottom: 4px; color: #667085; font-size: 10.5px; }
+.startup-profile-detail > strong { color: #344054; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+.startup-profile-counts { display: flex; gap: 10px; margin-top: 14px; }
+.startup-profile-counts > div { display: flex; align-items: baseline; gap: 7px; padding: 9px 12px; border-radius: 7px; background: #F5F7FB; }
+.startup-profile-counts strong { color: #173C70; font-size: 15px; }
+.startup-profile-counts span, .startup-session-footnote, .startup-session-caption { color: #667085; font-size: 11px; }
+.startup-profile-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.startup-profile-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.startup-profile-form-grid .form-group { min-width: 0; }
+.startup-profile-form-grid .startup-profile-full { grid-column: 1 / -1; }
+.startup-profile-form-grid .form-textarea { width: 100%; min-height: 88px; resize: vertical; }
+.startup-session-footnote { margin: 10px 0 0; line-height: 1.5; }
+.startup-session-caption { margin-left: auto; }
+.startup-shell.density-compact .startup-profile-detail { padding: 7px 10px; }
+.startup-shell.density-compact .startup-pilot-card { padding: 12px; }
 
 @media (max-width: 1100px) {
   .startup-overview-grid { grid-template-columns: minmax(0, 1fr); }
@@ -4671,6 +4691,14 @@ tbody td {
   .startup-activity-row time { margin-left: 39px; }
   .startup-quick-actions { padding: 10px 12px 12px; }
   .startup-profile-card { padding: 16px; }
+  .startup-company-profile-page .welcome-bar, .startup-settings-page .welcome-bar { align-items: flex-start; flex-direction: column; }
+  .startup-company-profile-page .welcome-bar > button { width: 100%; justify-content: center; }
+  .startup-profile-detail-grid, .startup-profile-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .startup-profile-form-grid .startup-profile-full { grid-column: auto; }
+  .startup-profile-actions { flex-direction: column-reverse; }
+  .startup-profile-actions button { width: 100%; justify-content: center; }
+  .startup-company-profile-page .mc-notice { align-items: flex-start; flex-wrap: wrap; }
+  .startup-session-caption { flex-basis: 100%; margin-left: 23px; }
 }
 
 /* ── Startup Challenge Discovery ── */
