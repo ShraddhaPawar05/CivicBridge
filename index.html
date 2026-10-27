@@ -1527,15 +1527,134 @@ function StartupDashboardOverview({ startup, stats, recommendedChallenges, recen
   );
 }
 
-function StartupChallengesPage({ startup, challenges, matches, onBack }) {
-  const [query, setQuery] = useState('');
-  const startupTags = new Set(startup.tags.map(tag=>tag.toLowerCase()));
-  const filtered = challenges.map(challenge=>({ ...challenge, sharedTags:challenge.tags.filter(tag=>startupTags.has(tag.toLowerCase())), match:matches.find(item=>item.challengeId===challenge.id) })).filter(challenge=>`${challenge.title} ${challenge.dept} ${challenge.category} ${challenge.tags.join(' ')}`.toLowerCase().includes(query.trim().toLowerCase()));
-  return <div className="page-content fade-in"><div className="welcome-bar"><div><h1 className="mc-page-title">Browse Challenges</h1><p className="mc-page-subtitle">Explore government opportunities that share your technology capabilities.</p></div><button className="btn-secondary" onClick={onBack}><Icon name="ArrowLeft" size={14} /> Overview</button></div><div className="search-wrap startup-challenge-search"><span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span><input aria-label="Search challenges" placeholder="Search title, department, or technology…" value={query} onChange={event=>setQuery(event.target.value)} /></div><div className="card startup-browse-card"><div className="table-wrap"><table className="startup-challenge-table"><thead><tr>{['Challenge','Category','Department','Status','Deadline','Technology fit'].map(label=><th key={label}>{label}</th>)}</tr></thead><tbody>{filtered.map(challenge=><tr key={challenge.id}><td className="startup-challenge-title">{challenge.title}<span>{challenge.desc}</span></td><td>{challenge.category}</td><td>{challenge.dept}</td><td><span className={`badge ${challenge.badge}`}>{challenge.stage}</span></td><td>{challenge.deadline}</td><td>{challenge.match?<span className="badge badge-teal">{challenge.match.matchScore}% match</span>:challenge.sharedTags.length?`${challenge.sharedTags.length} shared`:'Related domain'}</td></tr>)}</tbody></table>{!filtered.length&&<div className="mc-empty-state"><h2>No challenges found</h2><p>Try a different title, department, or technology.</p><button className="btn-secondary" onClick={()=>setQuery('')}>Clear search</button></div>}</div></div></div>;
+function StartupChallengeDetailsModal({ challenge, match, linkedChallenge, isSaved, onToggleSave, onClose, onPrepare }) {
+  useEffect(() => {
+    const onKey = event => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="modal-overlay discovery-modal startup-challenge-modal" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="discovery-detail-title">
+        <div className="modal-header"><span className="modal-title">Challenge details</span><button className="icon-btn" onClick={onClose} aria-label="Close challenge details"><Icon name="X" size={16} /></button></div>
+        <div className="modal-body">
+          <div className="discovery-detail-heading"><div><h2 id="discovery-detail-title">{challenge.title}</h2><span>{challenge.category} · {challenge.dept}</span></div><span className={`badge ${challenge.badge}`}>{challenge.stage}</span></div>
+          <section className="discovery-detail-section"><h3>Challenge description</h3><p>{challenge.desc}</p></section>
+          <section className="discovery-detail-section"><h3>Required technologies</h3><div className="discovery-tech-list">{challenge.tags.map(tag=><span key={tag}>{tag}</span>)}</div></section>
+          <div className="discovery-detail-meta"><span>Application deadline</span><strong>{challenge.deadline}</strong></div>
+          {linkedChallenge&&<div className="discovery-detail-meta"><span>Applications recorded</span><strong>{linkedChallenge.applications}</strong></div>}
+          {match&&<div className="discovery-match-note"><div><strong>{match.matchScore}% technology match</strong><span>From the existing demo match record.</span></div><p>{match.rationale}</p></div>}
+          <p className="discovery-demo-note">Challenge details and status are frontend demo data.</p>
+        </div>
+        <div className="modal-footer discovery-detail-footer"><button className={`btn-secondary${isSaved?' discovery-saved':''}`} onClick={()=>onToggleSave(challenge)}><Icon name={isSaved?'BookmarkCheck':'BookmarkPlus'} size={14} />{isSaved?'Saved':'Save Challenge'}</button><button className="btn-primary" onClick={()=>onPrepare(challenge)}><Icon name="FileText" size={14} color="#fff" /> Prepare Proposal</button></div>
+      </div>
+    </div>
+  );
+}
+
+function StartupProposalPreparationModal({ challenge, onClose, onSubmit, onViewProposals }) {
+  const [form,setForm]=useState({title:`Solution for ${challenge.title}`,solution:'',technologies:challenge.tags.join(', '),budget:'',expectedOutcomes:''});
+  const [errors,setErrors]=useState({});
+  const [submitted,setSubmitted]=useState(false);
+  const update=key=>event=>{setForm(previous=>({...previous,[key]:event.target.value}));setErrors(previous=>({...previous,[key]:''}));};
+
+  useEffect(() => {
+    const onKey = event => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  function submit(event) {
+    event.preventDefault();
+    const technologies=form.technologies.split(/[;,\n]/).map(value=>value.trim()).filter(Boolean);
+    const budget=Number(form.budget);
+    const nextErrors={
+      title:form.title.trim().length<5?'Enter a proposal title with at least 5 characters.':'',
+      solution:form.solution.trim().length<30?'Describe your solution in at least 30 characters.':'',
+      technologies:technologies.length===0?'Add at least one technology.':'',
+      budget:!form.budget||!Number.isFinite(budget)||budget<=0?'Enter an estimated budget greater than zero.':'',
+      expectedOutcomes:form.expectedOutcomes.trim().length<20?'Describe expected outcomes in at least 20 characters.':'',
+    };
+    setErrors(nextErrors);
+    if(Object.values(nextErrors).some(Boolean)) return;
+    const now=new Date();
+    const submissionDate=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    onSubmit({id:Date.now(),title:form.title.trim(),startupId:2,challengeId:challenge.id,submissionDate,status:'Proposal Submitted',description:form.solution.trim(),solution:form.solution.trim(),technologies,estimatedBudget:budget,expectedOutcomes:form.expectedOutcomes.trim()});
+    setSubmitted(true);
+  }
+
+  return (
+    <div className="modal-overlay discovery-modal startup-challenge-modal" onClick={event=>{if(event.target===event.currentTarget)onClose();}}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="startup-proposal-title">
+        {submitted?<><div className="modal-header"><span className="modal-title" id="startup-proposal-title">Proposal prepared</span><button className="icon-btn" onClick={onClose} aria-label="Close proposal confirmation"><Icon name="X" size={16} /></button></div><div className="modal-body"><div className="proposal-success"><div className="proposal-success-icon"><Icon name="Check" size={22} color="#0F9D8A" /></div><h2>{form.title}</h2><p>Your proposal was added to My Proposals in this demo session. No data was sent to a server.</p></div></div><div className="modal-footer"><button className="btn-secondary" onClick={onClose}>Close</button><button className="btn-primary" onClick={onViewProposals}><Icon name="FileText" size={14} color="#fff" /> View My Proposals</button></div></>:<form onSubmit={submit} noValidate><div className="modal-header"><div><span className="modal-title" id="startup-proposal-title">Prepare Proposal</span><span className="proposal-modal-subtitle">{challenge.title}</span></div><button type="button" className="icon-btn" onClick={onClose} aria-label="Close proposal form"><Icon name="X" size={16} /></button></div><div className="modal-body">
+          <div className="form-group"><label className="form-label" htmlFor="startup-proposal-title-input">Proposal title</label><input id="startup-proposal-title-input" className={`form-input${errors.title?' mc-input-error':''}`} value={form.title} onChange={update('title')} maxLength={100} />{errors.title&&<span className="mc-field-error" role="alert">{errors.title}</span>}</div>
+          <div className="form-group"><label className="form-label" htmlFor="startup-proposal-solution">Proposed solution</label><textarea id="startup-proposal-solution" className={`form-textarea proposal-solution-input${errors.solution?' mc-input-error':''}`} value={form.solution} onChange={update('solution')} maxLength={1000} placeholder="Describe your proposed approach and how it addresses the challenge…" />{errors.solution&&<span className="mc-field-error" role="alert">{errors.solution}</span>}</div>
+          <div className="form-group"><label className="form-label" htmlFor="startup-proposal-technologies">Technologies</label><input id="startup-proposal-technologies" className={`form-input${errors.technologies?' mc-input-error':''}`} value={form.technologies} onChange={update('technologies')} placeholder="Separate technologies with commas" />{errors.technologies&&<span className="mc-field-error" role="alert">{errors.technologies}</span>}</div>
+          <div className="proposal-form-grid"><div className="form-group"><label className="form-label" htmlFor="startup-proposal-budget">Estimated budget</label><input id="startup-proposal-budget" type="number" min="1" step="1000" className={`form-input${errors.budget?' mc-input-error':''}`} value={form.budget} onChange={update('budget')} placeholder="Amount in INR" />{errors.budget&&<span className="mc-field-error" role="alert">{errors.budget}</span>}</div><div className="form-group"><label className="form-label" htmlFor="startup-proposal-outcomes">Expected outcomes</label><textarea id="startup-proposal-outcomes" className={`form-textarea${errors.expectedOutcomes?' mc-input-error':''}`} value={form.expectedOutcomes} onChange={update('expectedOutcomes')} maxLength={500} placeholder="Describe measurable outcomes…" />{errors.expectedOutcomes&&<span className="mc-field-error" role="alert">{errors.expectedOutcomes}</span>}</div></div>
+          <p className="discovery-demo-note">Proposal details remain in this frontend demo session only.</p>
+        </div><div className="modal-footer"><button type="button" className="btn-secondary" onClick={onClose}>Cancel</button><button type="submit" className="btn-primary"><Icon name="Send" size={14} color="#fff" /> Submit Proposal</button></div></form>}
+      </div>
+    </div>
+  );
+}
+
+function StartupChallengesPage({ startup, challenges, matches, savedChallengeIds, onToggleSave, onSubmitProposal, onViewProposals, onBack }) {
+  const [query,setQuery]=useState('');
+  const [categoryFilter,setCategoryFilter]=useState('All');
+  const [departmentFilter,setDepartmentFilter]=useState('All');
+  const [statusFilter,setStatusFilter]=useState('All');
+  const [selectedChallenge,setSelectedChallenge]=useState(null);
+  const [proposalChallenge,setProposalChallenge]=useState(null);
+  const [notice,setNotice]=useState('');
+  const startupTags=new Set(startup.tags.map(tag=>tag.toLowerCase()));
+  const categories=[...new Set(challenges.map(challenge=>challenge.category))].sort();
+  const departments=[...new Set(challenges.map(challenge=>challenge.dept))].sort();
+  const statuses=[...new Set(challenges.map(challenge=>challenge.stage))].sort();
+  const enriched=challenges.map(challenge=>{
+    const sharedTags=challenge.tags.filter(tag=>startupTags.has(tag.toLowerCase()));
+    const linkedChallenge=INITIAL_GOV_CHALLENGES.find(item=>item.title===challenge.title);
+    const match=matches.find(item=>item.challengeId===(linkedChallenge?.id||challenge.id));
+    return {...challenge,sharedTags,match,linkedChallenge};
+  });
+  const filtered=enriched.filter(challenge=>{
+    const searchable=`${challenge.title} ${challenge.dept} ${challenge.category} ${challenge.tags.join(' ')} ${challenge.desc}`.toLowerCase();
+    return (!query.trim()||searchable.includes(query.trim().toLowerCase()))
+      && (categoryFilter==='All'||challenge.category===categoryFilter)
+      && (departmentFilter==='All'||challenge.dept===departmentFilter)
+      && (statusFilter==='All'||challenge.stage===statusFilter);
+  });
+  function toggleSaved(challenge) {
+    const alreadySaved=savedChallengeIds.includes(challenge.id);
+    onToggleSave(challenge.id);
+    setNotice(alreadySaved?`${challenge.title} removed from Saved Challenges.`:`${challenge.title} added to Saved Challenges.`);
+  }
+  function clearFilters() {
+    setQuery(''); setCategoryFilter('All'); setDepartmentFilter('All'); setStatusFilter('All');
+  }
+
+  return (
+    <div className="page-content fade-in startup-challenges-page">
+      <div className="welcome-bar"><div><h1 className="mc-page-title">Browse Challenges</h1><p className="mc-page-subtitle">Explore government opportunities that share your technology capabilities.</p></div><button className="btn-secondary" onClick={onBack}><Icon name="ArrowLeft" size={14} /> Overview</button></div>
+      {notice&&<div className="mc-notice" role="status"><Icon name="BookmarkCheck" size={15} color="#0F9D8A" />{notice}<span className="startup-demo-only">Saved in this demo session.</span></div>}
+      <div className="startup-challenge-toolbar"><div className="search-wrap startup-challenge-search"><span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span><input aria-label="Search challenges" placeholder="Search title, department, or technology…" value={query} onChange={event=>setQuery(event.target.value)} /></div><select className="form-select startup-challenge-filter" aria-label="Filter challenges by category" value={categoryFilter} onChange={event=>setCategoryFilter(event.target.value)}><option value="All">All categories</option>{categories.map(category=><option key={category}>{category}</option>)}</select><select className="form-select startup-challenge-filter" aria-label="Filter challenges by department" value={departmentFilter} onChange={event=>setDepartmentFilter(event.target.value)}><option value="All">All departments</option>{departments.map(department=><option key={department}>{department}</option>)}</select><select className="form-select startup-challenge-filter" aria-label="Filter challenges by status" value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}><option value="All">All statuses</option>{statuses.map(status=><option key={status}>{status}</option>)}</select></div>
+      <div className="startup-results-count">{filtered.length} of {challenges.length} challenges</div>
+      <div className="card startup-browse-card"><div className="table-wrap"><table className="startup-challenge-table"><thead><tr>{['Challenge','Category','Department','Status','Deadline','Technology fit','Actions'].map(label=><th key={label}>{label}</th>)}</tr></thead><tbody>{filtered.map(challenge=><tr key={challenge.id}><td className="startup-challenge-title">{challenge.title}<span>{challenge.desc}</span></td><td>{challenge.category}</td><td>{challenge.dept}</td><td><span className={`badge ${challenge.badge}`}>{challenge.stage}</span></td><td>{challenge.deadline}</td><td>{challenge.match?<span className="badge badge-teal">{challenge.match.matchScore}% match</span>:challenge.sharedTags.length?`${challenge.sharedTags.length} shared`:'Related domain'}</td><td className="startup-challenge-actions"><button className="btn-secondary" onClick={()=>setSelectedChallenge(challenge)}><Icon name="Eye" size={14} /> Details</button><button className={`btn-secondary${savedChallengeIds.includes(challenge.id)?' startup-saved-button':''}`} aria-pressed={savedChallengeIds.includes(challenge.id)} onClick={()=>toggleSaved(challenge)}><Icon name={savedChallengeIds.includes(challenge.id)?'BookmarkCheck':'BookmarkPlus'} size={14} />{savedChallengeIds.includes(challenge.id)?'Saved':'Save'}</button><button className="btn-primary" onClick={()=>setProposalChallenge(challenge)}><Icon name="FileText" size={14} color="#fff" /> Prepare Proposal</button></td></tr>)}</tbody></table>{!filtered.length&&<div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="SearchX" size={22} color="#173C70" /></div><h2>No challenges found</h2><p>Try another title, category, department, or status filter.</p><button className="btn-secondary" onClick={clearFilters}>Clear filters</button></div>}</div></div>
+      {selectedChallenge&&<StartupChallengeDetailsModal challenge={selectedChallenge} match={selectedChallenge.match} linkedChallenge={selectedChallenge.linkedChallenge} isSaved={savedChallengeIds.includes(selectedChallenge.id)} onToggleSave={toggleSaved} onClose={()=>setSelectedChallenge(null)} onPrepare={challenge=>{setSelectedChallenge(null);setProposalChallenge(challenge);}} />}
+      {proposalChallenge&&<StartupProposalPreparationModal challenge={proposalChallenge} onClose={()=>setProposalChallenge(null)} onSubmit={onSubmitProposal} onViewProposals={()=>{setProposalChallenge(null);onViewProposals();}} />}
+    </div>
+  );
+}
+
+function startupChallengeForProposal(proposal, challenges) {
+  const directMatch=challenges.find(challenge=>challenge.id===proposal.challengeId);
+  if(directMatch)return directMatch;
+  const governmentChallenge=INITIAL_GOV_CHALLENGES.find(challenge=>challenge.id===proposal.challengeId);
+  return challenges.find(challenge=>challenge.title===governmentChallenge?.title);
 }
 
 function StartupProposalsPage({ startup, proposals, challenges, onBack }) {
-  return <div className="page-content fade-in"><div className="welcome-bar"><div><h1 className="mc-page-title">My Proposals</h1><p className="mc-page-subtitle">Track proposal decisions for {startup.name}.</p></div><button className="btn-secondary" onClick={onBack}><Icon name="ArrowLeft" size={14} /> Overview</button></div><div className="card startup-browse-card"><div className="table-wrap"><table className="startup-challenge-table"><thead><tr>{['Proposal','Related challenge','Submitted','Status','Expected outcomes'].map(label=><th key={label}>{label}</th>)}</tr></thead><tbody>{proposals.map(proposal=>{const challenge=challenges.find(item=>item.id===proposal.challengeId);return <tr key={proposal.id}><td className="startup-challenge-title">{proposal.title}<span>{proposal.description}</span></td><td>{challenge?.title||'Challenge unavailable'}</td><td>{formatProposalDate(proposal.submissionDate)}</td><td><span className={`badge ${proposal.status==='Accepted'?'badge-teal':proposal.status==='Pending Review'?'badge-amber':proposal.status==='Rejected'?'pr-status-rejected':'pr-status-revisions'}`}>{proposal.status}</span></td><td>{proposal.expectedOutcomes}</td></tr>;})}</tbody></table>{!proposals.length&&<div className="mc-empty-state"><h2>No proposals yet</h2><p>Your submitted proposals will appear here.</p></div>}</div></div></div>;
+  return <div className="page-content fade-in"><div className="welcome-bar"><div><h1 className="mc-page-title">My Proposals</h1><p className="mc-page-subtitle">Track proposal decisions for {startup.name}.</p></div><button className="btn-secondary" onClick={onBack}><Icon name="ArrowLeft" size={14} /> Overview</button></div><div className="card startup-browse-card"><div className="table-wrap"><table className="startup-challenge-table"><thead><tr>{['Proposal','Related challenge','Submitted','Status','Expected outcomes'].map(label=><th key={label}>{label}</th>)}</tr></thead><tbody>{proposals.map(proposal=>{const challenge=startupChallengeForProposal(proposal,challenges);return <tr key={proposal.id}><td className="startup-challenge-title">{proposal.title}<span>{proposal.description}</span></td><td>{challenge?.title||'Challenge unavailable'}</td><td>{formatProposalDate(proposal.submissionDate)}</td><td><span className={`badge ${proposal.status==='Accepted'?'badge-teal':proposal.status==='Pending Review'?'badge-amber':proposal.status==='Proposal Submitted'?'badge-purple':proposal.status==='Rejected'?'pr-status-rejected':'pr-status-revisions'}`}>{proposal.status}</span></td><td>{proposal.expectedOutcomes}</td></tr>;})}</tbody></table>{!proposals.length&&<div className="mc-empty-state"><h2>No proposals yet</h2><p>Your submitted proposals will appear here.</p><button className="btn-secondary" onClick={onBack}>Back to Overview</button></div>}</div></div></div>;
 }
 
 function StartupPilotPage({ startup, pilots, challenges, onBack }) {
@@ -1545,6 +1664,8 @@ function StartupPilotPage({ startup, pilots, challenges, onBack }) {
 // ── Startup Dashboard ─────────────────────────────────────────────────────────
 function StartupDashboard({ setPage }) {
   const [activeNav, setActiveNav] = useState('overview');
+  const [savedChallengeIds,setSavedChallengeIds] = useState([]);
+  const [submittedProposals,setSubmittedProposals] = useState([]);
   const navItems = [
     { id:'overview',    label:'Overview',          icon:'LayoutDashboard' },
     { id:'challenges',  label:'Browse Challenges', icon:'Search' },
@@ -1555,13 +1676,14 @@ function StartupDashboard({ setPage }) {
   ];
   const startup = PUBLIC_STARTUPS.find(item => item.id === 2) || PUBLIC_STARTUPS[0];
   const startupMatches = INITIAL_GOV_MATCHES.filter(match => match.id === startup.id);
-  const startupProposals = INITIAL_GOV_PROPOSALS.filter(proposal => proposal.startupId === startup.id);
+  const startupProposals = [...INITIAL_GOV_PROPOSALS.filter(proposal => proposal.startupId === startup.id), ...submittedProposals];
   const startupPilots = INITIAL_GOV_PILOTS.filter(pilot => pilot.startupId === startup.id);
   const activePilots = startupPilots.filter(pilot => ['In Progress','Delayed'].includes(pilot.status));
   const startupTags = new Set(startup.tags.map(tag => tag.toLowerCase()));
   const recommendedChallenges = PUBLIC_CHALLENGES.map(challenge => {
     const sharedTags = challenge.tags.filter(tag => startupTags.has(tag.toLowerCase()));
-    const match = startupMatches.find(item => item.challengeId === challenge.id);
+    const linkedChallenge = INITIAL_GOV_CHALLENGES.find(item => item.title === challenge.title);
+    const match = startupMatches.find(item => item.challengeId === (linkedChallenge?.id || challenge.id));
     return { ...challenge, sharedTags, matchScore:match?.matchScore || null };
   }).filter(challenge => challenge.sharedTags.length)
     .sort((left,right) => Number(!!right.matchScore)-Number(!!left.matchScore) || right.sharedTags.length-left.sharedTags.length)
@@ -1618,7 +1740,7 @@ function StartupDashboard({ setPage }) {
         {activeNav === 'overview'
           ? <StartupDashboardOverview startup={startup} stats={stats} recommendedChallenges={recommendedChallenges} recentActivity={recentActivity} onNavigate={setActiveNav} />
           : activeNav === 'challenges'
-            ? <StartupChallengesPage startup={startup} challenges={PUBLIC_CHALLENGES} matches={startupMatches} onBack={() => setActiveNav('overview')} />
+              ? <StartupChallengesPage startup={startup} challenges={PUBLIC_CHALLENGES} matches={startupMatches} savedChallengeIds={savedChallengeIds} onToggleSave={id=>setSavedChallengeIds(previous=>previous.includes(id)?previous.filter(savedId=>savedId!==id):[...previous,id])} onSubmitProposal={proposal=>setSubmittedProposals(previous=>[proposal,...previous])} onViewProposals={()=>setActiveNav('proposals')} onBack={() => setActiveNav('overview')} />
             : activeNav === 'proposals'
               ? <StartupProposalsPage startup={startup} proposals={startupProposals} challenges={PUBLIC_CHALLENGES} onBack={() => setActiveNav('overview')} />
               : activeNav === 'pilot'
