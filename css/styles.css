@@ -4728,3 +4728,51 @@ tbody td {
   .discovery-detail-heading { align-items: flex-start; flex-direction: column; }
   .discovery-detail-meta { flex-direction: column; }
 }
+
+/* ── Startup Proposals ── */
+.startup-proposal-summary { margin-bottom: 16px; }
+.startup-proposal-summary .summary-card { min-width: 0; }
+.startup-proposal-summary .summary-value { font-size: 21px; }
+.startup-proposal-summary .startup-budget-summary-value { font-size: 16px; white-space: nowrap; }
+.startup-proposal-toolbar { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 10px; }
+.startup-proposal-toolbar .search-wrap { flex: 1 1 260px; max-width: 440px; margin: 0; }
+.startup-proposal-toolbar .form-select { width: auto; min-width: 170px; }
+.startup-proposal-results { margin-left: auto; color: #667085; font-size: 11.5px; }
+.startup-proposals-table { min-width: 900px; }
+.startup-proposal-detail-button { min-height: 31px; padding: 5px 9px; font-size: 11px; }
+.startup-proposal-modal .modal-box { width: 680px; }
+.startup-proposal-edit-trigger { margin: 0; }
+.startup-proposal-detail-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding-bottom: 13px; border-bottom: 1px solid #E5EAF1; }
+.startup-proposal-detail-heading h2 { margin: 0 0 7px; color: #182230; font-size: 17px; line-height: 1.4; overflow-wrap: anywhere; }
+.startup-proposal-detail-heading > span { flex: 0 0 auto; color: #667085; font-size: 11px; }
+.startup-proposal-linked-challenge { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; padding: 11px 12px; border-radius: 8px; background: #F5F7FB; }
+.startup-proposal-linked-challenge > span { color: #667085; font-size: 10.5px; }
+.startup-proposal-linked-challenge strong { color: #173C70; font-size: 12px; }
+.startup-proposal-linked-challenge small { color: #667085; font-size: 10.5px; }
+.startup-proposal-detail-section { margin-top: 15px; }
+.startup-proposal-detail-section h3 { margin: 0 0 6px; color: #344054; font-size: 11.5px; font-weight: 700; }
+.startup-proposal-detail-section p { margin: 0; color: #667085; font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.startup-proposal-detail-section .discovery-tech-list p { width: 100%; }
+.startup-proposal-modal #startup-proposal-edit-form { margin-top: 15px; }
+.startup-proposal-modal #startup-proposal-edit-form .form-group { margin-bottom: 12px; }
+.startup-proposal-modal .mc-notice { margin-bottom: 12px; }
+.startup-proposal-locked { margin: 16px 0 0; padding: 10px 12px; border-radius: 7px; color: #667085; background: #F5F7FB; font-size: 11px; }
+
+@media (max-width: 760px) {
+  .startup-proposal-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .startup-proposal-results { flex: 1 0 100%; margin-left: 0; }
+}
+
+@media (max-width: 520px) {
+  .startup-proposals-page .welcome-bar { flex-direction: column; }
+  .startup-proposals-page .welcome-bar > button { width: 100%; justify-content: center; }
+  .startup-proposal-summary .summary-card { padding: 12px 9px; gap: 8px; }
+  .startup-proposal-summary .summary-value { font-size: 19px; }
+  .startup-proposal-summary .startup-budget-summary-value { font-size: 14px; }
+  .startup-proposal-toolbar .search-wrap, .startup-proposal-toolbar .form-select { width: 100%; max-width: none; }
+  .startup-proposal-modal .modal-box { width: 100%; max-width: 95vw; }
+  .startup-proposal-modal .modal-header, .startup-proposal-modal .modal-body { padding: 16px; }
+  .startup-proposal-modal .modal-footer { padding: 12px 16px; flex-direction: column-reverse; align-items: stretch; }
+  .startup-proposal-modal .modal-footer button { justify-content: center; }
+  .startup-proposal-detail-heading { flex-direction: column; }
+}

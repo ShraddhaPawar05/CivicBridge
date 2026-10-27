@@ -1653,8 +1653,146 @@ function startupChallengeForProposal(proposal, challenges) {
   return challenges.find(challenge=>challenge.title===governmentChallenge?.title);
 }
 
-function StartupProposalsPage({ startup, proposals, challenges, onBack }) {
-  return <div className="page-content fade-in"><div className="welcome-bar"><div><h1 className="mc-page-title">My Proposals</h1><p className="mc-page-subtitle">Track proposal decisions for {startup.name}.</p></div><button className="btn-secondary" onClick={onBack}><Icon name="ArrowLeft" size={14} /> Overview</button></div><div className="card startup-browse-card"><div className="table-wrap"><table className="startup-challenge-table"><thead><tr>{['Proposal','Related challenge','Submitted','Status','Expected outcomes'].map(label=><th key={label}>{label}</th>)}</tr></thead><tbody>{proposals.map(proposal=>{const challenge=startupChallengeForProposal(proposal,challenges);return <tr key={proposal.id}><td className="startup-challenge-title">{proposal.title}<span>{proposal.description}</span></td><td>{challenge?.title||'Challenge unavailable'}</td><td>{formatProposalDate(proposal.submissionDate)}</td><td><span className={`badge ${proposal.status==='Accepted'?'badge-teal':proposal.status==='Pending Review'?'badge-amber':proposal.status==='Proposal Submitted'?'badge-purple':proposal.status==='Rejected'?'pr-status-rejected':'pr-status-revisions'}`}>{proposal.status}</span></td><td>{proposal.expectedOutcomes}</td></tr>;})}</tbody></table>{!proposals.length&&<div className="mc-empty-state"><h2>No proposals yet</h2><p>Your submitted proposals will appear here.</p><button className="btn-secondary" onClick={onBack}>Back to Overview</button></div>}</div></div></div>;
+function startupProposalIsEditable(proposal) {
+  return ['Proposal Submitted','Pending Review','Revisions Requested'].includes(proposal.status);
+}
+
+function formatStartupProposalBudget(value) {
+  if (value === undefined || value === null || value === '') return 'Not provided';
+  return new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:0 }).format(value);
+}
+
+function StartupProposalDetailsModal({ proposal, challenge, onClose, onSave }) {
+  const [editing,setEditing]=useState(false);
+  const [form,setForm]=useState({
+    title:proposal.title||'',
+    description:proposal.description||'',
+    solution:proposal.solution||'',
+    technologies:(proposal.technologies||[]).join(', '),
+    estimatedBudget:proposal.estimatedBudget??'',
+    expectedOutcomes:proposal.expectedOutcomes||'',
+  });
+  const [errors,setErrors]=useState({});
+  const [saved,setSaved]=useState(false);
+  const editable=startupProposalIsEditable(proposal);
+  const update=key=>event=>{
+    setForm(previous=>({...previous,[key]:event.target.value}));
+    setErrors(previous=>({...previous,[key]:''}));
+    setSaved(false);
+  };
+
+  useEffect(() => {
+    const onKey=event=>{if(event.key==='Escape')onClose();};
+    document.addEventListener('keydown',onKey);
+    return ()=>document.removeEventListener('keydown',onKey);
+  },[onClose]);
+
+  function save(event) {
+    event.preventDefault();
+    const technologies=form.technologies.split(/[;,\n]/).map(value=>value.trim()).filter(Boolean);
+    const budget=form.estimatedBudget===''?'':Number(form.estimatedBudget);
+    const nextErrors={
+      title:form.title.trim().length<5?'Enter a proposal title with at least 5 characters.':'',
+      description:form.description.trim()?'':'Enter a short proposal description.',
+      solution:form.solution.trim().length<30?'Describe your solution in at least 30 characters.':'',
+      technologies:technologies.length===0?'Add at least one technology.':'',
+      estimatedBudget:budget!==''&&(!Number.isFinite(budget)||budget<=0)?'Enter a budget greater than zero, or leave it blank.':'',
+      expectedOutcomes:form.expectedOutcomes.trim()?'':'Describe the expected outcomes.',
+    };
+    setErrors(nextErrors);
+    if(Object.values(nextErrors).some(Boolean))return;
+    onSave({...proposal,title:form.title.trim(),description:form.description.trim(),solution:form.solution.trim(),technologies,estimatedBudget:budget,expectedOutcomes:form.expectedOutcomes.trim()});
+    setEditing(false);
+    setSaved(true);
+  }
+
+  function beginEditing(event) {
+    event.preventDefault();
+    setSaved(false);
+    setEditing(true);
+  }
+
+  const readOnlyField=(label,value)=> <section className="startup-proposal-detail-section"><h3>{label}</h3><p>{value||'Not provided'}</p></section>;
+  const field=(key,label,options={})=>(
+    <div className="form-group">
+      <label className="form-label" htmlFor={`startup-edit-${key}`}>{label}</label>
+      {options.multiline
+        ? <textarea id={`startup-edit-${key}`} className={`form-textarea${options.solution?' proposal-solution-input':''}${errors[key]?' mc-input-error':''}`} value={form[key]} onChange={update(key)} maxLength={options.maxLength||1000} />
+        : <input id={`startup-edit-${key}`} type={options.number?'number':'text'} min={options.number?'1':undefined} className={`form-input${errors[key]?' mc-input-error':''}`} value={form[key]} onChange={update(key)} maxLength={options.maxLength||undefined} />}
+      {errors[key]&&<span className="mc-field-error" role="alert">{errors[key]}</span>}
+    </div>
+  );
+  const budget=formatStartupProposalBudget(proposal.estimatedBudget);
+
+  return (
+    <div className="modal-overlay startup-proposal-modal" onClick={event=>{if(event.target===event.currentTarget)onClose();}}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="startup-proposal-detail-title">
+        <div className="modal-header"><div><span className="modal-title">Proposal details</span><span className="proposal-modal-subtitle">{challenge?.title||'Challenge unavailable'}</span></div><button className="icon-btn" onClick={onClose} aria-label="Close proposal details"><Icon name="X" size={16} /></button></div>
+        <div className="modal-body">
+          {saved&&<div className="mc-notice" role="status"><Icon name="CheckCircle" size={15} color="#0F9D8A" /> Proposal changes saved in this demo session.</div>}
+          <div className="startup-proposal-detail-heading"><div><h2 id="startup-proposal-detail-title">{proposal.title}</h2><span className={`badge ${proposalStatusBadge(proposal.status)}`}>{proposal.status}</span></div><span>Submitted {formatProposalDate(proposal.submissionDate)}</span></div>
+          <div className="startup-proposal-linked-challenge"><span>Related challenge</span><strong>{challenge?.title||'Challenge unavailable'}</strong>{challenge&&<small>{challenge.category} · {challenge.dept} · {challenge.stage}</small>}</div>
+          {editing
+            ? <form id="startup-proposal-edit-form" onSubmit={save} noValidate>
+                {field('title','Proposal title',{maxLength:100})}
+                {field('description','Proposal description',{multiline:true,maxLength:500})}
+                {field('solution','Proposed solution',{multiline:true,solution:true,maxLength:1000})}
+                {field('technologies','Technologies')}
+                {field('estimatedBudget','Estimated budget (INR)',{number:true})}
+                {field('expectedOutcomes','Expected outcomes',{multiline:true,maxLength:500})}
+              </form>
+            : <>
+                {readOnlyField('Proposal description',proposal.description)}
+                {readOnlyField('Proposed solution',proposal.solution)}
+                <section className="startup-proposal-detail-section"><h3>Technologies</h3><div className="discovery-tech-list">{(proposal.technologies||[]).length?proposal.technologies.map(technology=><span key={technology}>{technology}</span>):<p>Not provided</p>}</div></section>
+                {readOnlyField('Estimated budget',budget)}
+                {readOnlyField('Expected outcomes',proposal.expectedOutcomes)}
+                {proposal.reviewNote&&readOnlyField('Latest review note',proposal.reviewNote)}
+                {!editable&&<p className="startup-proposal-locked" role="status">This proposal is finalized and cannot be edited.</p>}
+              </>}
+        </div>
+        <div className="modal-footer">{editing
+          ? <><button type="button" className="btn-secondary" onClick={()=>{setEditing(false);setErrors({});}}>Cancel</button><button type="submit" form="startup-proposal-edit-form" className="btn-primary"><Icon name="Save" size={14} color="#fff" /> Save Changes</button></>
+          : <><button type="button" className="btn-secondary" onClick={onClose}>Close</button>{editable&&<form className="startup-proposal-edit-trigger" onSubmit={beginEditing}><button type="submit" className="btn-primary"><Icon name="Pencil" size={14} color="#fff" /> Edit Proposal</button></form>}</>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StartupProposalsPage({ startup, proposals, challenges, onBack, onUpdateProposal }) {
+  const [query,setQuery]=useState('');
+  const [statusFilter,setStatusFilter]=useState('All');
+  const [selectedProposalId,setSelectedProposalId]=useState(null);
+  const statuses=[...new Set(proposals.map(proposal=>proposal.status))].sort();
+  const term=query.trim().toLowerCase();
+  const filtered=proposals.filter(proposal=>{
+    const challenge=startupChallengeForProposal(proposal,challenges);
+    const searchable=`${proposal.title} ${proposal.description||''} ${challenge?.title||''} ${proposal.status}`.toLowerCase();
+    return (!term||searchable.includes(term))&&(statusFilter==='All'||proposal.status===statusFilter);
+  });
+  const pendingCount=proposals.filter(proposal=>['Proposal Submitted','Pending Review','Revisions Requested'].includes(proposal.status)).length;
+  const acceptedCount=proposals.filter(proposal=>proposal.status==='Accepted').length;
+  const estimatedTotal=proposals.reduce((total,proposal)=>total+(Number(proposal.estimatedBudget)||0),0);
+  const selectedProposal=proposals.find(proposal=>proposal.id===selectedProposalId);
+
+  return (
+    <div className="page-content fade-in startup-proposals-page">
+      <div className="welcome-bar"><div><h1 className="mc-page-title">My Proposals</h1><p className="mc-page-subtitle">Track proposal decisions for {startup.name}.</p></div><button className="btn-secondary" onClick={onBack}><Icon name="ArrowLeft" size={14} /> Overview</button></div>
+      <div className="summary-grid startup-proposal-summary">
+        {[{label:'Total Proposals',value:proposals.length,icon:'FileText',color:'#173C70',bg:'#EBF2FF'},{label:'Awaiting Decision',value:pendingCount,icon:'Clock3',color:'#b45309',bg:'#FFF4E5'},{label:'Accepted',value:acceptedCount,icon:'CheckCircle',color:'#0F9D8A',bg:'#E6F7F5'},{label:'Estimated Budget',value:formatStartupProposalBudget(estimatedTotal),icon:'IndianRupee',color:'#6d28d9',bg:'#F3EEFF'}].map(card=><div className="summary-card" key={card.label}><div className="summary-icon" style={{background:card.bg}}><Icon name={card.icon} size={19} color={card.color} /></div><div><div className={`summary-value${card.label==='Estimated Budget'?' startup-budget-summary-value':''}`}>{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}
+      </div>
+      <div className="startup-proposal-toolbar">
+        <div className="search-wrap"><span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span><input aria-label="Search proposals" placeholder="Search proposal or challenge…" value={query} onChange={event=>setQuery(event.target.value)} /></div>
+        <select className="form-select" aria-label="Filter proposals by status" value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}><option value="All">All statuses</option>{statuses.map(status=><option key={status}>{status}</option>)}</select>
+        <span className="startup-proposal-results">{filtered.length} of {proposals.length} proposals</span>
+      </div>
+      <div className="card startup-browse-card"><div className="table-wrap"><table className="startup-challenge-table startup-proposals-table"><thead><tr>{['Proposal','Related challenge','Submitted','Status','Estimated budget','Action'].map(label=><th key={label}>{label}</th>)}</tr></thead><tbody>{filtered.map(proposal=>{const challenge=startupChallengeForProposal(proposal,challenges);return <tr key={proposal.id}><td className="startup-challenge-title">{proposal.title}<span>{proposal.description}</span></td><td>{challenge?.title||'Challenge unavailable'}</td><td>{formatProposalDate(proposal.submissionDate)}</td><td><span className={`badge ${proposalStatusBadge(proposal.status)}`}>{proposal.status}</span></td><td>{formatStartupProposalBudget(proposal.estimatedBudget)}</td><td><button className="btn-secondary startup-proposal-detail-button" onClick={()=>setSelectedProposalId(proposal.id)}><Icon name="Eye" size={14} /> Details</button></td></tr>;})}</tbody></table>
+        {!filtered.length&&<div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="FileSearch" size={22} color="#173C70" /></div><h2>{proposals.length?'No matching proposals':'No proposals yet'}</h2><p>{proposals.length?'Try another search term or status filter. Your proposals are kept for this dashboard session.':'Submit a proposal from Browse Challenges and it will appear here.'}</p>{proposals.length?<button className="btn-secondary" onClick={()=>{setQuery('');setStatusFilter('All');}}>Clear filters</button>:<button className="btn-secondary" onClick={()=>onBack()}>Back to Overview</button>}</div>}
+      </div></div>
+      {selectedProposal&&<StartupProposalDetailsModal key={selectedProposal.id} proposal={selectedProposal} challenge={startupChallengeForProposal(selectedProposal,challenges)} onClose={()=>setSelectedProposalId(null)} onSave={onUpdateProposal} />}
+    </div>
+  );
 }
 
 function StartupPilotPage({ startup, pilots, challenges, onBack }) {
@@ -1665,7 +1803,7 @@ function StartupPilotPage({ startup, pilots, challenges, onBack }) {
 function StartupDashboard({ setPage }) {
   const [activeNav, setActiveNav] = useState('overview');
   const [savedChallengeIds,setSavedChallengeIds] = useState([]);
-  const [submittedProposals,setSubmittedProposals] = useState([]);
+  const [startupProposals,setStartupProposals] = useState(() => INITIAL_GOV_PROPOSALS.filter(proposal => proposal.startupId === 2));
   const navItems = [
     { id:'overview',    label:'Overview',          icon:'LayoutDashboard' },
     { id:'challenges',  label:'Browse Challenges', icon:'Search' },
@@ -1676,7 +1814,6 @@ function StartupDashboard({ setPage }) {
   ];
   const startup = PUBLIC_STARTUPS.find(item => item.id === 2) || PUBLIC_STARTUPS[0];
   const startupMatches = INITIAL_GOV_MATCHES.filter(match => match.id === startup.id);
-  const startupProposals = [...INITIAL_GOV_PROPOSALS.filter(proposal => proposal.startupId === startup.id), ...submittedProposals];
   const startupPilots = INITIAL_GOV_PILOTS.filter(pilot => pilot.startupId === startup.id);
   const activePilots = startupPilots.filter(pilot => ['In Progress','Delayed'].includes(pilot.status));
   const startupTags = new Set(startup.tags.map(tag => tag.toLowerCase()));
@@ -1740,9 +1877,9 @@ function StartupDashboard({ setPage }) {
         {activeNav === 'overview'
           ? <StartupDashboardOverview startup={startup} stats={stats} recommendedChallenges={recommendedChallenges} recentActivity={recentActivity} onNavigate={setActiveNav} />
           : activeNav === 'challenges'
-              ? <StartupChallengesPage startup={startup} challenges={PUBLIC_CHALLENGES} matches={startupMatches} savedChallengeIds={savedChallengeIds} onToggleSave={id=>setSavedChallengeIds(previous=>previous.includes(id)?previous.filter(savedId=>savedId!==id):[...previous,id])} onSubmitProposal={proposal=>setSubmittedProposals(previous=>[proposal,...previous])} onViewProposals={()=>setActiveNav('proposals')} onBack={() => setActiveNav('overview')} />
+              ? <StartupChallengesPage startup={startup} challenges={PUBLIC_CHALLENGES} matches={startupMatches} savedChallengeIds={savedChallengeIds} onToggleSave={id=>setSavedChallengeIds(previous=>previous.includes(id)?previous.filter(savedId=>savedId!==id):[...previous,id])} onSubmitProposal={proposal=>setStartupProposals(previous=>[proposal,...previous])} onViewProposals={()=>setActiveNav('proposals')} onBack={() => setActiveNav('overview')} />
             : activeNav === 'proposals'
-              ? <StartupProposalsPage startup={startup} proposals={startupProposals} challenges={PUBLIC_CHALLENGES} onBack={() => setActiveNav('overview')} />
+              ? <StartupProposalsPage startup={startup} proposals={startupProposals} challenges={PUBLIC_CHALLENGES} onBack={() => setActiveNav('overview')} onUpdateProposal={updated=>setStartupProposals(previous=>previous.map(proposal=>proposal.id===updated.id?updated:proposal))} />
               : activeNav === 'pilot'
                 ? <StartupPilotPage startup={startup} pilots={startupPilots} challenges={PUBLIC_CHALLENGES} onBack={() => setActiveNav('overview')} />
                 : activeNav === 'profile'
@@ -2799,6 +2936,7 @@ function StartupMatchesPage({ matches, setMatches, challenges, onOpenChallenge }
 
 function proposalStatusBadge(status) {
   if (status === 'Pending Review') return 'badge-amber';
+  if (status === 'Proposal Submitted') return 'badge-purple';
   if (status === 'Accepted') return 'badge-teal';
   if (status === 'Rejected') return 'pr-status-rejected';
   return 'pr-status-revisions';
