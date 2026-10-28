@@ -2137,19 +2137,16 @@ function StartupDashboard({ setPage }) {
 // ── Evaluator Dashboard ───────────────────────────────────────────────────────
 function EvaluatorDashboard({ setPage }) {
   const [activeNav, setActiveNav] = useState('queue');
+  const [evaluatorEvaluations, setEvaluatorEvaluations] = useState(() => INITIAL_GOV_EVALUATIONS.map(evaluation => ({ ...evaluation, scores:{ ...evaluation.scores } })));
+  const [evaluatorProposals] = useState(() => INITIAL_GOV_PROPOSALS.map(proposal => ({ ...proposal })));
   const navItems = [
     { id:'queue',    label:'Review Queue',    icon:'ClipboardCheck' },
     { id:'active',   label:'Active Reviews',  icon:'FileText' },
     { id:'completed',label:'Completed',       icon:'CheckCircle' },
     { id:'settings', label:'Settings',        icon:'Settings' },
   ];
-  const queue = [
-    { id:1, challenge:'Smart Waste Collection',         startup:'EcoTech Solutions',     due:'05 Nov 2026', priority:'High' },
-    { id:2, challenge:'Urban Water Quality Monitoring', startup:'AquaSense Tech',         due:'10 Nov 2026', priority:'Medium' },
-    { id:3, challenge:'Traffic Congestion Monitoring',  startup:'UrbanAI Labs',           due:'12 Nov 2026', priority:'High' },
-  ];
   return (
-    <div className="app-shell">
+    <div className="app-shell evaluation-shell evaluator-shell">
       <aside className="sidebar">
         <div className="sidebar-logo">
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -2179,7 +2176,7 @@ function EvaluatorDashboard({ setPage }) {
         <header className="top-header">
           <div style={{ flex:1 }}>
             <div style={{ fontSize:11, color:'#667085' }}>Evaluator Portal / {navItems.find(n=>n.id===activeNav)?.label}</div>
-            <div style={{ fontSize:15, fontWeight:700, color:'#182230' }}>Evaluator Dashboard</div>
+            <div style={{ fontSize:15, fontWeight:700, color:'#182230' }}>{activeNav==='queue'?'Evaluator Dashboard':navItems.find(n=>n.id===activeNav)?.label}</div>
           </div>
           <div className="avatar" style={{ background:'#6d28d9' }}>EV</div>
           <div>
@@ -2187,45 +2184,9 @@ function EvaluatorDashboard({ setPage }) {
             <div style={{ fontSize:11, color:'#667085' }}>Evaluator</div>
           </div>
         </header>
-        <div className="page-content fade-in">
-          <div className="welcome-bar">
-            <div>
-              <h1 style={{ fontSize:20, fontWeight:700, color:'#182230', margin:0 }}>Welcome back, Dr. Rahman</h1>
-              <p style={{ fontSize:13, color:'#667085', marginTop:4, marginBottom:0 }}>You have {queue.length} proposals awaiting your review.</p>
-            </div>
-          </div>
-          <div className="summary-grid" style={{ gridTemplateColumns:'repeat(3,1fr)' }}>
-            {[
-              { value:'03', label:'Pending Reviews',   icon:'ClipboardCheck', bg:'#F3EEFF', color:'#6d28d9' },
-              { value:'08', label:'Completed Reviews', icon:'CheckCircle',    bg:'#E6F7F5', color:'#0F9D8A' },
-              { value:'4.8', label:'Avg Score Given',  icon:'Star',           bg:'#FFF4E5', color:'#b45309' },
-            ].map(c => (
-              <div key={c.label} className="summary-card">
-                <div className="summary-icon" style={{ background:c.bg }}><Icon name={c.icon} size={20} color={c.color} /></div>
-                <div><div className="summary-value">{c.value}</div><div className="summary-label">{c.label}</div></div>
-              </div>
-            ))}
-          </div>
-          <div className="card">
-            <div className="card-header"><span className="card-title">Review Queue</span></div>
-            <div className="table-wrap">
-              <table>
-                <thead><tr>{['Challenge','Startup','Due Date','Priority','Action'].map(h=><th key={h}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {queue.map(q => (
-                    <tr key={q.id}>
-                      <td style={{ fontWeight:500 }}>{q.challenge}</td>
-                      <td style={{ color:'#667085' }}>{q.startup}</td>
-                      <td style={{ color:'#667085' }}>{q.due}</td>
-                      <td><span className={`badge ${q.priority==='High'?'badge-amber':'badge-blue'}`}>{q.priority}</span></td>
-                      <td><button className="view-link">Start Review</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        {['queue','active','completed'].includes(activeNav)
+          ? <EvaluationPage proposals={evaluatorProposals} evaluations={evaluatorEvaluations} setEvaluations={setEvaluatorEvaluations} startups={INITIAL_GOV_MATCHES} challenges={INITIAL_GOV_CHALLENGES} scope={activeNav} />
+          : <div className="page-content fade-in"><div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="Settings" size={22} color="#173C70" /></div><h2>Evaluator Settings</h2><p>No evaluator-specific settings are available in this demo.</p></div></div>}
       </div>
     </div>
   );
@@ -3388,7 +3349,8 @@ function EvaluationDetailsModal({ proposal, evaluation, startup, challenge, onCl
         <div className="modal-header"><span className="modal-title">Evaluation details</span><button className="icon-btn" onClick={onClose} aria-label="Close evaluation details"><Icon name="X" size={16} /></button></div>
         <div className="modal-body">
           <div className="ev-detail-heading"><div><h2 id="ev-detail-title">{proposal.title}</h2><span>{startup?.name || 'Startup applicant'} · submitted {formatProposalDate(proposal.submissionDate)}</span></div><span className={`badge ${evaluationStatusBadge(evaluation.status)}`}>{evaluation.status}</span></div>
-          <div className="ev-detail-meta"><span>Related challenge</span>{challenge ? <button className="view-link" onClick={() => onOpenChallenge(challenge.id)}>{challenge.title}<Icon name="ArrowUpRight" size={13} /></button> : <strong>Challenge unavailable</strong>}</div>
+          <div className="ev-detail-meta"><span>Related challenge</span>{challenge ? onOpenChallenge ? <button className="view-link" onClick={() => onOpenChallenge(challenge.id)}>{challenge.title}<Icon name="ArrowUpRight" size={13} /></button> : <strong>{challenge.title}</strong> : <strong>Challenge unavailable</strong>}</div>
+          {challenge && <section className="ev-detail-section ev-challenge-context"><h3>Challenge information</h3><div className="ev-score-list"><div className="ev-score-row"><span>Category</span><strong>{challenge.category || 'Not specified'}</strong></div><div className="ev-score-row"><span>Application deadline</span><strong>{challenge.deadline ? formatProposalDate(challenge.deadline) : 'Not specified'}</strong></div></div><p>{challenge.description || 'No challenge description is available.'}</p></section>}
           <section className="ev-detail-section"><h3>Proposal summary</h3><p>{proposal.description}</p><p>{proposal.solution}</p></section>
           <section className="ev-detail-section"><h3>Evaluation criteria</h3><div className="ev-score-list">{EVALUATION_CRITERIA.map(criterion => <div className="ev-score-row" key={criterion.id}><span>{criterion.label}</span><strong>{evaluation.scores?.[criterion.id] ? `${evaluation.scores[criterion.id]}/5` : 'Not scored'}</strong></div>)}</div><div className="ev-overall-score">Overall score <strong>{evaluationScore(evaluation)}</strong></div></section>
           <section className="ev-detail-section"><h3>Reviewer comments</h3><p>{evaluation.comments || 'No reviewer comments saved yet.'}</p></section>
@@ -3401,7 +3363,7 @@ function EvaluationDetailsModal({ proposal, evaluation, startup, challenge, onCl
   );
 }
 
-function EvaluationEditorModal({ proposal, evaluation, onClose, onSave }) {
+function EvaluationEditorModal({ proposal, evaluation, challenge, onClose, onSave }) {
   const [scores, setScores] = useState(() => ({ ...(evaluation.scores || {}) }));
   const [comments, setComments] = useState(evaluation.comments || '');
   const [recommendation, setRecommendation] = useState(evaluation.recommendation || '');
@@ -3452,6 +3414,7 @@ function EvaluationEditorModal({ proposal, evaluation, onClose, onSave }) {
           <form onSubmit={beginSubmission} noValidate>
             <div className="modal-header"><div><span className="modal-title" id="ev-editor-title">Evaluate Proposal</span><span className="ev-editor-subtitle">{proposal.title}</span></div><button type="button" className="icon-btn" onClick={onClose} aria-label="Close evaluation editor"><Icon name="X" size={16} /></button></div>
             <div className="modal-body">
+              <section className="ev-editor-proposal-context"><h3>Proposal and challenge</h3><p><strong>Challenge:</strong> {challenge?.title || 'Challenge unavailable'}{challenge?.category ? ` · ${challenge.category}` : ''}</p><p>{proposal.description}</p><p><strong>Proposed solution:</strong> {proposal.solution}</p><p><strong>Expected outcomes:</strong> {proposal.expectedOutcomes}</p>{proposal.estimatedBudget!=null&&<p><strong>Estimated budget:</strong> {new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(proposal.estimatedBudget)}</p>}</section>
               <p className="ev-score-instruction">Rate each criterion from 1 (needs work) to 5 (excellent).</p>
               <div className="ev-criteria-list">{EVALUATION_CRITERIA.map(criterion => <div className="ev-criterion" key={criterion.id}><label className="form-label" htmlFor={`ev-score-${criterion.id}`}>{criterion.label}</label><select id={`ev-score-${criterion.id}`} className={`form-select${errors[criterion.id] ? ' mc-input-error' : ''}`} value={scores[criterion.id] || ''} onChange={event => { setScores(previous => ({ ...previous, [criterion.id]:event.target.value ? Number(event.target.value) : '' })); setErrors(previous => ({ ...previous, [criterion.id]:'', draft:'' })); }}><option value="">Select score</option>{[1,2,3,4,5].map(score => <option value={score} key={score}>{score} / 5</option>)}</select>{errors[criterion.id] && <span className="mc-field-error" role="alert">{errors[criterion.id]}</span>}</div>)}</div>
               <div className="form-group"><label className="form-label" htmlFor="ev-comments">Reviewer comments</label><textarea id="ev-comments" className={`form-textarea${errors.comments ? ' mc-input-error' : ''}`} value={comments} onChange={event => { setComments(event.target.value); setErrors(previous => ({ ...previous, comments:'' })); }} maxLength={1000} placeholder="Summarize strengths, risks, and any clarification needed…" /><div className="ev-character-count">{comments.length}/1000</div>{errors.comments && <div className="mc-field-error" role="alert">{errors.comments}</div>}</div>
@@ -3468,7 +3431,7 @@ function EvaluationEditorModal({ proposal, evaluation, onClose, onSave }) {
   );
 }
 
-function EvaluationPage({ proposals, evaluations, setEvaluations, startups, challenges, onOpenChallenge }) {
+function EvaluationPage({ proposals, evaluations, setEvaluations, startups, challenges, onOpenChallenge, scope='all' }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [challengeFilter, setChallengeFilter] = useState('All');
@@ -3481,7 +3444,15 @@ function EvaluationPage({ proposals, evaluations, setEvaluations, startups, chal
     const challenge = challengeById(proposal.challengeId);
     return challenge ? [challenge.id, challenge.title] : null;
   }).filter(Boolean))];
-  const rows = evaluations.map(evaluation => ({ evaluation, proposal:proposalById(evaluation.proposalId) })).filter(row => row.proposal);
+  const allRows = evaluations.map(evaluation => ({ evaluation, proposal:proposalById(evaluation.proposalId) })).filter(row => row.proposal);
+  const rows = allRows.filter(({evaluation}) => scope==='queue'
+    ? ['Pending','In Progress','Flagged'].includes(evaluation.status)
+    : scope==='active'
+      ? ['In Progress','Flagged'].includes(evaluation.status)
+      : scope==='completed'
+        ? evaluation.status==='Completed'
+        : true);
+  const statusOptions = scope==='queue' ? ['Pending','In Progress','Flagged'] : scope==='active' ? ['In Progress','Flagged'] : scope==='completed' ? ['Completed'] : ['Pending','In Progress','Completed','Flagged'];
   const filtered = rows.filter(({ evaluation, proposal }) => {
     const startup = startupById(proposal.startupId);
     const challenge = challengeById(proposal.challengeId);
@@ -3492,10 +3463,10 @@ function EvaluationPage({ proposals, evaluations, setEvaluations, startups, chal
       && (challengeFilter === 'All' || String(proposal.challengeId) === challengeFilter);
   });
   const summaries = [
-    { label:'Total Evaluations', value:rows.length, icon:'ClipboardCheck', bg:'#EBF2FF', color:'#173C70' },
-    { label:'Pending', value:rows.filter(row => ['Pending','In Progress'].includes(row.evaluation.status)).length, icon:'Clock3', bg:'#FFF4E5', color:'#b45309' },
-    { label:'Completed', value:rows.filter(row => row.evaluation.status === 'Completed').length, icon:'CheckCircle', bg:'#E6F7F5', color:'#0F9D8A' },
-    { label:'Flagged', value:rows.filter(row => row.evaluation.status === 'Flagged').length, icon:'Flag', bg:'#FEE4E2', color:'#b42318' },
+    { label:'Total Evaluations', value:allRows.length, icon:'ClipboardCheck', bg:'#EBF2FF', color:'#173C70' },
+    { label:scope==='all'?'Pending':'Open', value:allRows.filter(row => ['Pending','In Progress'].includes(row.evaluation.status)).length, icon:'Clock3', bg:'#FFF4E5', color:'#b45309' },
+    { label:'Completed', value:allRows.filter(row => row.evaluation.status === 'Completed').length, icon:'CheckCircle', bg:'#E6F7F5', color:'#0F9D8A' },
+    { label:'Flagged', value:allRows.filter(row => row.evaluation.status === 'Flagged').length, icon:'Flag', bg:'#FEE4E2', color:'#b42318' },
   ];
 
   function saveEvaluation(proposalId, update, final) {
@@ -3513,18 +3484,18 @@ function EvaluationPage({ proposals, evaluations, setEvaluations, startups, chal
 
   return (
     <div className="page-content evaluation-page">
-      <div className="welcome-bar"><div><h1 className="mc-page-title">Evaluation</h1><p className="mc-page-subtitle">Score startup proposals against consistent criteria and record a clear recommendation.</p></div></div>
+      <div className="welcome-bar"><div><h1 className="mc-page-title">{scope==='queue'?'Review Queue':scope==='active'?'Active Reviews':scope==='completed'?'Completed Evaluations':'Evaluation'}</h1><p className="mc-page-subtitle">{scope==='queue'?'Review submitted startup proposals and record a recommendation.':scope==='active'?'Continue draft or flagged proposal evaluations.':scope==='completed'?'Review submitted evaluation decisions and scores.':'Score startup proposals against consistent criteria and record a clear recommendation.'}</p></div></div>
       {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}<span className="ev-demo-caption">Demo session only.</span></div>}
 
       <div className="summary-grid ev-summary-grid">{summaries.map(card => <div key={card.label} className="summary-card"><div className="summary-icon" style={{ background:card.bg }}><Icon name={card.icon} size={20} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}</div>
 
       <section className="card ev-list-card">
-        <div className="card-header ev-list-header"><div><div className="card-title">Submissions for Evaluation</div><div className="mc-result-count">Showing {filtered.length} of {rows.length} evaluations</div></div><div className="ev-toolbar"><div className="search-wrap ev-search"><span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span><input type="search" aria-label="Search startup or challenge" placeholder="Search startup or challenge…" value={search} onChange={event => setSearch(event.target.value)} /></div><select className="form-select ev-filter" aria-label="Filter evaluations by status" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="All">All statuses</option>{['Pending','In Progress','Completed','Flagged'].map(status => <option value={status} key={status}>{status}</option>)}</select><select className="form-select ev-filter" aria-label="Filter evaluations by challenge" value={challengeFilter} onChange={event => setChallengeFilter(event.target.value)}><option value="All">All challenges</option>{challengeOptions.map(([id,title]) => <option value={id} key={id}>{title}</option>)}</select></div></div>
-        {filtered.length ? <div className="table-wrap ev-table-wrap"><table className="ev-table"><thead><tr>{['Startup','Related challenge','Submitted','Evaluation status','Score','Actions'].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{filtered.map(({ evaluation, proposal }) => {const startup = startupById(proposal.startupId); const challenge = challengeById(proposal.challengeId);return <tr key={proposal.id}><td className="ev-startup-cell" data-label="Startup"><span className="ev-startup-name"><span className="startup-avatar" style={{ background:startup?.color || '#173C70' }}>{startup?.initials || 'ST'}</span>{startup?.name || proposal.startupName}</span></td><td data-label="Related challenge">{challenge?.title || 'Challenge unavailable'}</td><td data-label="Submitted">{formatProposalDate(proposal.submissionDate)}</td><td data-label="Evaluation status"><span className={`badge ${evaluationStatusBadge(evaluation.status)}`}>{evaluation.status}</span></td><td data-label="Score" className="ev-score-cell">{evaluationScore(evaluation)}</td><td className="ev-actions-cell" data-label="Actions"><div className="ev-row-actions"><button className="btn-secondary ev-action-btn" onClick={() => setDialog({ type:'details', proposal, evaluation })}><Icon name="Eye" size={14} /> Details</button><button className="btn-primary ev-action-btn" onClick={() => setDialog({ type:'edit', proposal, evaluation })}><Icon name="ClipboardCheck" size={14} color="#fff" /> Evaluate</button></div></td></tr>;})}</tbody></table></div> : <div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="SearchX" size={22} color="#173C70" /></div><h2>No evaluations found</h2><p>Try another startup, challenge, or status filter.</p><button className="btn-secondary" onClick={resetFilters}>Clear filters</button></div>}
+        <div className="card-header ev-list-header"><div><div className="card-title">{scope==='queue'?'Proposals awaiting evaluation':scope==='active'?'Draft and flagged evaluations':scope==='completed'?'Submitted evaluations':'Submissions for Evaluation'}</div><div className="mc-result-count">Showing {filtered.length} of {rows.length} evaluations</div></div><div className="ev-toolbar"><div className="search-wrap ev-search"><span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span><input type="search" aria-label="Search startup or challenge" placeholder="Search startup or challenge…" value={search} onChange={event => setSearch(event.target.value)} /></div><select className="form-select ev-filter" aria-label="Filter evaluations by status" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="All">All statuses</option>{statusOptions.map(status => <option value={status} key={status}>{status}</option>)}</select><select className="form-select ev-filter" aria-label="Filter evaluations by challenge" value={challengeFilter} onChange={event => setChallengeFilter(event.target.value)}><option value="All">All challenges</option>{challengeOptions.map(([id,title]) => <option value={id} key={id}>{title}</option>)}</select></div></div>
+        {filtered.length ? <div className="table-wrap ev-table-wrap"><table className="ev-table"><thead><tr>{['Startup','Related challenge','Submitted','Evaluation status','Score','Actions'].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{filtered.map(({ evaluation, proposal }) => {const startup = startupById(proposal.startupId); const challenge = challengeById(proposal.challengeId);const actionLabel=scope==='queue'?(evaluation.status==='Pending'?'Start Review':evaluation.status==='Flagged'?'Review Flag':'Continue Review'):scope==='active'?(evaluation.status==='Flagged'?'Review Flag':'Continue Review'):scope==='completed'?'Open Evaluation':'Evaluate';return <tr key={proposal.id}><td className="ev-startup-cell" data-label="Startup"><span className="ev-startup-name"><span className="startup-avatar" style={{ background:startup?.color || '#173C70' }}>{startup?.initials || 'ST'}</span>{startup?.name || proposal.startupName}</span></td><td data-label="Related challenge">{challenge?.title || 'Challenge unavailable'}</td><td data-label="Submitted">{formatProposalDate(proposal.submissionDate)}</td><td data-label="Evaluation status"><span className={`badge ${evaluationStatusBadge(evaluation.status)}`}>{evaluation.status}</span></td><td data-label="Score" className="ev-score-cell">{evaluationScore(evaluation)}</td><td className="ev-actions-cell" data-label="Actions"><div className="ev-row-actions"><button className="btn-secondary ev-action-btn" onClick={() => setDialog({ type:'details', proposal, evaluation })}><Icon name="Eye" size={14} /> Details</button><button className="btn-primary ev-action-btn" onClick={() => setDialog({ type:'edit', proposal, evaluation })}><Icon name="ClipboardCheck" size={14} color="#fff" /> {actionLabel}</button></div></td></tr>;})}</tbody></table></div> : <div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="SearchX" size={22} color="#173C70" /></div><h2>{rows.length?'No evaluations match these filters':scope==='completed'?'No evaluations submitted yet':'No proposals awaiting evaluation'}</h2><p>{rows.length?'Try another startup, challenge, or status filter.':'New evaluation records will appear here when proposals enter review.'}</p><button className="btn-secondary" onClick={resetFilters}>Clear filters</button></div>}
       </section>
 
-      {dialog?.type === 'details' && <EvaluationDetailsModal proposal={dialog.proposal} evaluation={dialog.evaluation} startup={startupById(dialog.proposal.startupId)} challenge={challengeById(dialog.proposal.challengeId)} onClose={() => setDialog(null)} onEvaluate={(proposal, evaluation) => setDialog({ type:'edit', proposal, evaluation })} onOpenChallenge={id => { setDialog(null); onOpenChallenge(id); }} />}
-      {dialog?.type === 'edit' && <EvaluationEditorModal key={dialog.proposal.id} proposal={dialog.proposal} evaluation={dialog.evaluation} onClose={() => setDialog(null)} onSave={saveEvaluation} />}
+      {dialog?.type === 'details' && <EvaluationDetailsModal proposal={dialog.proposal} evaluation={dialog.evaluation} startup={startupById(dialog.proposal.startupId)} challenge={challengeById(dialog.proposal.challengeId)} onClose={() => setDialog(null)} onEvaluate={(proposal, evaluation) => setDialog({ type:'edit', proposal, evaluation })} onOpenChallenge={onOpenChallenge ? id => { setDialog(null); onOpenChallenge(id); } : undefined} />}
+      {dialog?.type === 'edit' && <EvaluationEditorModal key={dialog.proposal.id} proposal={dialog.proposal} evaluation={dialog.evaluation} challenge={challengeById(dialog.proposal.challengeId)} onClose={() => setDialog(null)} onSave={saveEvaluation} />}
     </div>
   );
 }

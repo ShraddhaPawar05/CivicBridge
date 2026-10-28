@@ -4243,6 +4243,11 @@ tbody td {
 .ev-flag-option { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 12px; color: #344054; font-size: 12px; cursor: pointer; }
 .ev-flag-option input { accent-color: #173C70; }
 .ev-confirm-text { margin: 0; color: #344054; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.ev-editor-proposal-context { margin-bottom: 16px; padding: 12px; border: 1px solid #E5EAF1; border-radius: 8px; background: #F8FAFC; }
+.ev-editor-proposal-context h3 { margin: 0 0 8px; color: #182230; font-size: 12px; }
+.ev-editor-proposal-context p { margin: 5px 0 0; color: #667085; font-size: 11.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.ev-challenge-context > p { margin-top: 9px; }
+.evaluator-shell .evaluation-page { width: 100%; }
 
 @media (max-width: 1080px) {
   .ev-toolbar { flex-basis: 100%; justify-content: flex-start; }
