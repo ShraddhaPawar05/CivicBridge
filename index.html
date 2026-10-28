@@ -2134,11 +2134,93 @@ function StartupDashboard({ setPage }) {
   );
 }
 
+const INITIAL_EVALUATOR_SETTINGS = {
+  profile:{ name:'Dr. A. Rahman', email:'', expertise:'', experience:'' },
+  preferredCategories:['Smart Cities','Transport'],
+  notifications:{ assignments:true, reminders:true, updates:true },
+  density:'comfortable',
+};
+
+function EvaluatorSettingsPage({ settings, defaults, onSave, onReset, onDensityChange }) {
+  const [form,setForm]=useState(()=>({...settings.profile}));
+  const [preferredCategories,setPreferredCategories]=useState(()=>[...settings.preferredCategories]);
+  const [notifications,setNotifications]=useState(()=>({...settings.notifications}));
+  const [density,setDensity]=useState(settings.density);
+  const [errors,setErrors]=useState({});
+  const [notice,setNotice]=useState('');
+  const [resetOpen,setResetOpen]=useState(false);
+  const expertiseOptions=['Artificial Intelligence & ML','IoT & Embedded Systems','Data Science & Analytics','Cloud & Infrastructure','Cybersecurity','Smart Cities','Environmental Technology','Public Policy & Governance','Finance & Procurement','Healthcare Technology','Education Technology','Other'];
+  const challengeCategories=[...new Set(INITIAL_GOV_CHALLENGES.map(challenge=>challenge.category))].sort();
+  const update=key=>event=>{
+    setForm(previous=>({...previous,[key]:event.target.value}));
+    setErrors(previous=>({...previous,[key]:''}));
+    setNotice('');
+  };
+  const toggleCategory=category=>{
+    setPreferredCategories(previous=>previous.includes(category)?previous.filter(item=>item!==category):[...previous,category]);
+    setNotice('');
+  };
+  const toggleNotification=key=>{
+    setNotifications(previous=>({...previous,[key]:!previous[key]}));
+    setNotice('');
+  };
+  function save(event) {
+    event.preventDefault();
+    const nextErrors={
+      name:form.name.trim()?'':'Enter your name.',
+      email:!form.email.trim()?'Enter your email address.':!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())?'Enter a valid email address.':'',
+      expertise:form.expertise?'':'Select your primary expertise.',
+    };
+    setErrors(nextErrors);
+    if(Object.values(nextErrors).some(Boolean))return;
+    const saved={...settings,profile:{...form,name:form.name.trim(),email:form.email.trim(),experience:form.experience.trim()},preferredCategories:[...preferredCategories],notifications:{...notifications},density};
+    onSave(saved);
+    setNotice('Evaluator settings saved for this demo session.');
+  }
+  function confirmReset() {
+    const reset={...defaults,profile:{...defaults.profile},preferredCategories:[...defaults.preferredCategories],notifications:{...defaults.notifications}};
+    onReset(reset);
+    setForm({...reset.profile});
+    setPreferredCategories([...reset.preferredCategories]);
+    setNotifications({...reset.notifications});
+    setDensity(reset.density);
+    setErrors({});
+    setNotice('Evaluator settings reset to demo defaults for this session.');
+    setResetOpen(false);
+  }
+  const field=(key,label,options={})=>(
+    <div className={`form-group${options.full?' settings-full':''}`}>
+      <label className="form-label" htmlFor={`evaluator-settings-${key}`}>{label}{options.optional&&<span className="settings-optional">Optional</span>}</label>
+      {options.multiline
+        ? <textarea id={`evaluator-settings-${key}`} className="form-textarea" value={form[key]} onChange={update(key)} maxLength={500} placeholder={options.placeholder||''} />
+        : <input id={`evaluator-settings-${key}`} type={options.email?'email':'text'} className={`form-input${errors[key]?' mc-input-error':''}`} value={form[key]} onChange={update(key)} maxLength={options.maxLength||100} aria-invalid={!!errors[key]} />}
+      {errors[key]&&<span className="mc-field-error" role="alert">{errors[key]}</span>}
+    </div>
+  );
+  return (
+    <div className={`page-content settings-page density-${density} evaluator-settings-page`}>
+      <div className="welcome-bar"><div><h1 className="mc-page-title">Evaluator Settings</h1><p className="mc-page-subtitle">Manage your reviewer profile and dashboard preferences for this demo session.</p></div><span className="badge badge-blue">Session only</span></div>
+      {notice&&<div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}</div>}
+      <form className="settings-form" onSubmit={save} noValidate>
+        <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon"><Icon name="UserRound" size={17} color="#6d28d9" /></div><div><h2>Evaluator profile</h2><p>Contact and professional details used in this demo workspace.</p></div></div><div className="settings-grid">{field('name','Evaluator name')}{field('email','Email address',{email:true})}<div className="form-group"><label className="form-label" htmlFor="evaluator-settings-expertise">Primary expertise</label><select id="evaluator-settings-expertise" className={`form-select${errors.expertise?' mc-input-error':''}`} value={form.expertise} onChange={event=>{setForm(previous=>({...previous,expertise:event.target.value}));setErrors(previous=>({...previous,expertise:''}));setNotice('');}} aria-invalid={!!errors.expertise}><option value="">Select expertise</option>{expertiseOptions.map(option=><option key={option}>{option}</option>)}</select>{errors.expertise&&<span className="mc-field-error" role="alert">{errors.expertise}</span>}</div>{field('experience','Professional experience',{multiline:true,optional:true,full:true,placeholder:'Add relevant experience or evaluation background…'})}</div><p className="evaluator-settings-note">The demo profile provides the evaluator name only; email and expertise are not present in the existing records.</p></section>
+        <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon"><Icon name="Target" size={17} color="#173C70" /></div><div><h2>Professional preferences</h2><p>Select challenge categories you prefer to review. These preferences do not change proposal assignments.</p></div></div><fieldset className="evaluator-category-options"><legend>Preferred challenge categories</legend><div className="evaluator-category-grid">{challengeCategories.map(category=><label key={category}><input type="checkbox" checked={preferredCategories.includes(category)} onChange={()=>toggleCategory(category)} /><span>{category}</span></label>)}</div></fieldset></section>
+        <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon settings-icon-amber"><Icon name="BellRing" size={17} color="#b45309" /></div><div><h2>Notification preferences</h2><p>Session-only preferences for evaluator workflow reminders.</p></div></div><div className="settings-options">{[['assignments','New evaluation assignments','When a proposal is added to your review queue.'],['reminders','Review reminders','Reminders for evaluations still in progress.'],['updates','Evaluation status updates','When a draft or submitted evaluation status changes.']].map(([key,label,description])=><label className="settings-option" key={key}><span><strong>{label}</strong><small>{description}</small></span><input type="checkbox" checked={notifications[key]} onChange={()=>toggleNotification(key)} aria-label={label} /></label>)}</div></section>
+        <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon"><Icon name="SlidersHorizontal" size={17} color="#173C70" /></div><div><h2>Display preferences</h2><p>Choose spacing for supported dashboard lists.</p></div></div><fieldset className="settings-density"><legend>Content density</legend><div className="settings-segment" role="radiogroup" aria-label="Evaluator content density">{[['comfortable','Comfortable'],['compact','Compact']].map(([value,label])=><button type="button" role="radio" aria-checked={density===value} className={density===value?'is-selected':''} key={value} onClick={()=>{setDensity(value);onDensityChange(value);setNotice('');}}>{label}</button>)}</div></fieldset></section>
+        <div className="settings-footer"><button type="button" className="btn-secondary" onClick={()=>setResetOpen(true)}><Icon name="RotateCcw" size={14} /> Reset to Defaults</button><button type="submit" className="btn-primary"><Icon name="Save" size={14} color="#fff" /> Save Settings</button></div>
+      </form>
+      <p className="startup-session-footnote">These settings apply only during this dashboard session. Nothing is sent to a server.</p>
+      {resetOpen&&<div className="modal-overlay settings-modal" onClick={event=>{if(event.target===event.currentTarget)setResetOpen(false);}}><div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="evaluator-settings-reset-title"><div className="modal-header"><span className="modal-title" id="evaluator-settings-reset-title">Reset evaluator settings?</span><button type="button" className="icon-btn" onClick={()=>setResetOpen(false)} aria-label="Close reset confirmation"><Icon name="X" size={16} /></button></div><div className="modal-body"><p className="settings-reset-copy">Restore your evaluator profile and preferences to demo defaults for this session?</p></div><div className="modal-footer"><button type="button" className="btn-secondary" onClick={()=>setResetOpen(false)}>Keep Settings</button><button type="button" className="settings-reset-confirm" onClick={confirmReset}><Icon name="RotateCcw" size={14} /> Reset Settings</button></div></div></div>}
+    </div>
+  );
+}
+
 // ── Evaluator Dashboard ───────────────────────────────────────────────────────
 function EvaluatorDashboard({ setPage }) {
   const [activeNav, setActiveNav] = useState('queue');
   const [evaluatorEvaluations, setEvaluatorEvaluations] = useState(() => INITIAL_GOV_EVALUATIONS.map(evaluation => ({ ...evaluation, scores:{ ...evaluation.scores } })));
   const [evaluatorProposals] = useState(() => INITIAL_GOV_PROPOSALS.map(proposal => ({ ...proposal })));
+  const [evaluatorSettings,setEvaluatorSettings]=useState(()=>({...INITIAL_EVALUATOR_SETTINGS,profile:{...INITIAL_EVALUATOR_SETTINGS.profile},preferredCategories:[...INITIAL_EVALUATOR_SETTINGS.preferredCategories],notifications:{...INITIAL_EVALUATOR_SETTINGS.notifications}}));
+  const [evaluatorDensity,setEvaluatorDensity]=useState(INITIAL_EVALUATOR_SETTINGS.density);
   const navItems = [
     { id:'queue',    label:'Review Queue',    icon:'ClipboardCheck' },
     { id:'active',   label:'Active Reviews',  icon:'FileText' },
@@ -2146,7 +2228,7 @@ function EvaluatorDashboard({ setPage }) {
     { id:'settings', label:'Settings',        icon:'Settings' },
   ];
   return (
-    <div className="app-shell evaluation-shell evaluator-shell">
+    <div className={`app-shell evaluation-shell evaluator-shell${evaluatorDensity==='compact'?' density-compact':''}`}>
       <aside className="sidebar">
         <div className="sidebar-logo">
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -2178,15 +2260,15 @@ function EvaluatorDashboard({ setPage }) {
             <div style={{ fontSize:11, color:'#667085' }}>Evaluator Portal / {navItems.find(n=>n.id===activeNav)?.label}</div>
             <div style={{ fontSize:15, fontWeight:700, color:'#182230' }}>{activeNav==='queue'?'Evaluator Dashboard':navItems.find(n=>n.id===activeNav)?.label}</div>
           </div>
-          <div className="avatar" style={{ background:'#6d28d9' }}>EV</div>
+          <div className="avatar" style={{ background:'#6d28d9' }}>{evaluatorSettings.profile.name.split(/\s+/).filter(Boolean).map(part=>part[0]).slice(0,2).join('').toUpperCase()||'EV'}</div>
           <div>
-            <div style={{ fontSize:12, fontWeight:600, color:'#182230' }}>Dr. A. Rahman</div>
+            <div style={{ fontSize:12, fontWeight:600, color:'#182230' }}>{evaluatorSettings.profile.name}</div>
             <div style={{ fontSize:11, color:'#667085' }}>Evaluator</div>
           </div>
         </header>
         {['queue','active','completed'].includes(activeNav)
           ? <EvaluationPage proposals={evaluatorProposals} evaluations={evaluatorEvaluations} setEvaluations={setEvaluatorEvaluations} startups={INITIAL_GOV_MATCHES} challenges={INITIAL_GOV_CHALLENGES} scope={activeNav} />
-          : <div className="page-content fade-in"><div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="Settings" size={22} color="#173C70" /></div><h2>Evaluator Settings</h2><p>No evaluator-specific settings are available in this demo.</p></div></div>}
+          : <EvaluatorSettingsPage settings={evaluatorSettings} defaults={INITIAL_EVALUATOR_SETTINGS} onSave={setEvaluatorSettings} onReset={settings=>{setEvaluatorSettings(settings);setEvaluatorDensity(settings.density);}} onDensityChange={density=>{setEvaluatorDensity(density);setEvaluatorSettings(previous=>({...previous,density}));}} />}
       </div>
     </div>
   );
