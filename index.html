@@ -1272,152 +1272,303 @@ function AboutPage({ setPage }) {
   );
 }
 
-// ── Login Page ────────────────────────────────────────────────────────────────
-function LoginPage({ setPage }) {
-  const [email,       setEmail]       = useState('');
-  const [password,    setPassword]    = useState('');
-  const [showPw,      setShowPw]      = useState(false);
-  const [emailError,  setEmailError]  = useState('');
-  const [touched,     setTouched]     = useState({ email: false, password: false });
+// ── Login Page — 3-role card selection + per-role form ────────────────────────
 
-  function validateEmail(val) {
-    if (!val.trim()) return 'Email address is required.';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())) return 'Enter a valid email address.';
+// Inline SVG illustrations (cartoon-style, consistent with navy/teal palette)
+function GovIllustration() {
+  return (
+    <svg width="96" height="80" viewBox="0 0 96 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Building base */}
+      <rect x="14" y="34" width="68" height="38" rx="3" fill="#EBF2FF" stroke="#b8d0f5" strokeWidth="1.5"/>
+      {/* Columns */}
+      <rect x="22" y="38" width="8" height="30" rx="2" fill="#173C70" opacity="0.18"/>
+      <rect x="36" y="38" width="8" height="30" rx="2" fill="#173C70" opacity="0.18"/>
+      <rect x="50" y="38" width="8" height="30" rx="2" fill="#173C70" opacity="0.18"/>
+      <rect x="64" y="38" width="8" height="30" rx="2" fill="#173C70" opacity="0.18"/>
+      {/* Door */}
+      <rect x="40" y="52" width="16" height="20" rx="2" fill="#173C70" opacity="0.55"/>
+      {/* Roof / pediment */}
+      <polygon points="48,8 82,34 14,34" fill="#173C70"/>
+      {/* Flag pole */}
+      <line x1="48" y1="8" x2="48" y2="2" stroke="#173C70" strokeWidth="2"/>
+      {/* Flag */}
+      <rect x="48" y="2" width="14" height="8" rx="1" fill="#0F9D8A"/>
+      {/* Stars on pediment */}
+      <circle cx="40" cy="24" r="2" fill="#fff" opacity="0.7"/>
+      <circle cx="48" cy="20" r="2" fill="#fff" opacity="0.7"/>
+      <circle cx="56" cy="24" r="2" fill="#fff" opacity="0.7"/>
+    </svg>
+  );
+}
+
+function StartupIllustration() {
+  return (
+    <svg width="96" height="80" viewBox="0 0 96 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Rocket body */}
+      <ellipse cx="48" cy="44" rx="12" ry="22" fill="#E6F7F5" stroke="#9de0d8" strokeWidth="1.5"/>
+      {/* Rocket nose */}
+      <ellipse cx="48" cy="22" rx="12" ry="10" fill="#0F9D8A"/>
+      {/* Window */}
+      <circle cx="48" cy="40" r="6" fill="#fff" stroke="#0F9D8A" strokeWidth="1.5"/>
+      <circle cx="48" cy="40" r="3" fill="#E6F7F5"/>
+      {/* Left fin */}
+      <polygon points="36,58 28,70 36,66" fill="#0F9D8A" opacity="0.7"/>
+      {/* Right fin */}
+      <polygon points="60,58 68,70 60,66" fill="#0F9D8A" opacity="0.7"/>
+      {/* Flame */}
+      <ellipse cx="48" cy="70" rx="7" ry="10" fill="#fbbf24" opacity="0.85"/>
+      <ellipse cx="48" cy="72" rx="4" ry="6" fill="#f97316" opacity="0.9"/>
+      {/* Stars */}
+      <circle cx="18" cy="14" r="2" fill="#0F9D8A" opacity="0.5"/>
+      <circle cx="78" cy="20" r="1.5" fill="#0F9D8A" opacity="0.5"/>
+      <circle cx="24" cy="36" r="1.5" fill="#0F9D8A" opacity="0.4"/>
+      <circle cx="74" cy="10" r="2" fill="#0F9D8A" opacity="0.4"/>
+    </svg>
+  );
+}
+
+function EvaluatorIllustration() {
+  return (
+    <svg width="96" height="80" viewBox="0 0 96 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Clipboard */}
+      <rect x="22" y="14" width="52" height="60" rx="5" fill="#F3EEFF" stroke="#c4b0f0" strokeWidth="1.5"/>
+      {/* Clip top */}
+      <rect x="36" y="10" width="24" height="10" rx="3" fill="#6d28d9"/>
+      {/* Lines */}
+      <rect x="30" y="30" width="36" height="3" rx="1.5" fill="#6d28d9" opacity="0.25"/>
+      <rect x="30" y="38" width="28" height="3" rx="1.5" fill="#6d28d9" opacity="0.25"/>
+      <rect x="30" y="46" width="32" height="3" rx="1.5" fill="#6d28d9" opacity="0.25"/>
+      {/* Check mark circle */}
+      <circle cx="62" cy="58" r="12" fill="#6d28d9"/>
+      <polyline points="56,58 60,63 68,53" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      {/* Star rating dots */}
+      <circle cx="34" cy="58" r="3" fill="#6d28d9" opacity="0.5"/>
+      <circle cx="42" cy="58" r="3" fill="#6d28d9" opacity="0.5"/>
+      <circle cx="50" cy="58" r="3" fill="#6d28d9" opacity="0.3"/>
+    </svg>
+  );
+}
+
+function RoleLoginForm({ role, setPage }) {
+  const [email,      setEmail]      = useState('');
+  const [password,   setPassword]   = useState('');
+  const [showPw,     setShowPw]     = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [touched,    setTouched]    = useState({ email:false, password:false });
+
+  const META = {
+    gov:       { label:'Government',  color:'#173C70', bg:'#EBF2FF', dest:'govDashboard',       placeholder:'you@department.gov.in' },
+    startup:   { label:'Startup',     color:'#0F9D8A', bg:'#E6F7F5', dest:'startupDashboard',   placeholder:'you@startup.com' },
+    evaluator: { label:'Admin / Evaluator', color:'#6d28d9', bg:'#F3EEFF', dest:'evaluatorDashboard', placeholder:'you@evaluator.org' },
+  };
+  const m = META[role];
+
+  function validateEmail(v) {
+    if (!v.trim()) return 'Email address is required.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return 'Enter a valid email address.';
     return '';
-  }
-
-  function handleEmailBlur() {
-    setTouched(t => ({ ...t, email: true }));
-    setEmailError(validateEmail(email));
   }
 
   function handleSubmit() {
     const err = validateEmail(email);
-    setTouched({ email: true, password: true });
+    setTouched({ email:true, password:true });
     setEmailError(err);
     if (err) return;
-    // Prototype: no real auth — navigate to role selection
-    setPage('roleSelect');
+    setPage(m.dest);
   }
 
   return (
-    <div className="login-page">
-      {/* Left panel — branding */}
-      <div className="login-brand">
-        <div className="login-brand-inner">
-          <div className="login-brand-logo">
-            <div className="logo-mark" style={{ width:44, height:44 }}>
-              <Icon name="Building2" size={22} color="#fff" />
-            </div>
-            <span className="login-brand-name">CivicBridge</span>
+    <div className="login-form-inner">
+      {/* Role badge */}
+      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:20 }}>
+        <div style={{ width:32, height:32, borderRadius:8, background:m.bg, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <Icon name={role==='gov'?'Building2':role==='startup'?'Rocket':'ClipboardCheck'} size={16} color={m.color} />
+        </div>
+        <span style={{ fontSize:12, fontWeight:700, color:m.color, textTransform:'uppercase', letterSpacing:'0.7px' }}>{m.label} Portal</span>
+      </div>
+
+      <h1 className="login-heading">Sign in</h1>
+      <p className="login-subheading">Access your {m.label.toLowerCase()} dashboard.</p>
+
+      <div className="login-field">
+        <label className="login-label" htmlFor="rlf-email">Email address</label>
+        <input
+          id="rlf-email"
+          className={`login-input${touched.email && emailError ? ' login-input-error' : ''}`}
+          type="email"
+          placeholder={m.placeholder}
+          value={email}
+          onChange={e => { setEmail(e.target.value); if (touched.email) setEmailError(validateEmail(e.target.value)); }}
+          onBlur={() => { setTouched(t=>({...t,email:true})); setEmailError(validateEmail(email)); }}
+          autoComplete="email"
+        />
+        {touched.email && emailError && (
+          <div className="login-field-error" role="alert">
+            <Icon name="AlertCircle" size={13} color="#dc2626" />{emailError}
           </div>
-          <h2 className="login-brand-headline">India's GovTech Innovation Platform</h2>
-          <p className="login-brand-sub">
-            Connecting government departments with innovative startups through structured challenges, expert evaluation and real-world pilots.
-          </p>
-          <div className="login-brand-points">
-            <div className="login-brand-point">
-              <div className="login-brand-point-icon"><Icon name="Building2" size={14} color="#0F9D8A" /></div>
-              <span>Post and manage government challenges</span>
-            </div>
-            <div className="login-brand-point">
-              <div className="login-brand-point-icon"><Icon name="Rocket" size={14} color="#0F9D8A" /></div>
-              <span>Discover opportunities as a startup</span>
-            </div>
-            <div className="login-brand-point">
-              <div className="login-brand-point-icon"><Icon name="ClipboardCheck" size={14} color="#0F9D8A" /></div>
-              <span>Evaluate proposals as an independent expert</span>
-            </div>
-          </div>
+        )}
+      </div>
+
+      <div className="login-field">
+        <label className="login-label" htmlFor="rlf-password">Password</label>
+        <div className="login-pw-wrap">
+          <input
+            id="rlf-password"
+            className="login-input"
+            type={showPw ? 'text' : 'password'}
+            placeholder="Enter your password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            onBlur={() => setTouched(t=>({...t,password:true}))}
+            autoComplete="current-password"
+          />
+          <button type="button" className="login-pw-toggle" onClick={() => setShowPw(v=>!v)} aria-label={showPw?'Hide password':'Show password'}>
+            <Icon name={showPw?'EyeOff':'Eye'} size={16} color="#667085" />
+          </button>
         </div>
       </div>
 
-      {/* Right panel — form */}
-      <div className="login-form-panel">
-        <div className="login-form-inner">
-          {/* Mobile logo */}
-          <div className="login-mobile-logo">
-            <div className="logo-mark" style={{ width:36, height:36 }}>
-              <Icon name="Building2" size={18} color="#fff" />
-            </div>
-            <span className="login-brand-name" style={{ color:'#173C70' }}>CivicBridge</span>
-          </div>
+      <button className="login-submit-btn" style={{ background:m.color }} onClick={handleSubmit}>
+        <Icon name="LogIn" size={16} color="#fff" /> Sign In
+      </button>
 
-          <h1 className="login-heading">Sign in to your account</h1>
-          <p className="login-subheading">Access your dashboard to manage challenges, proposals and pilots.</p>
+      <p className="login-register-link">
+        Don't have an account?{' '}
+        <button className="login-link-btn" onClick={() => setPage('register')}>Get Started</button>
+      </p>
 
-          {/* Email */}
-          <div className="login-field">
-            <label className="login-label" htmlFor="login-email">Email address</label>
-            <input
-              id="login-email"
-              className={`login-input${touched.email && emailError ? ' login-input-error' : ''}`}
-              type="email"
-              placeholder="you@organisation.gov"
-              value={email}
-              onChange={e => { setEmail(e.target.value); if (touched.email) setEmailError(validateEmail(e.target.value)); }}
-              onBlur={handleEmailBlur}
-              autoComplete="email"
-              aria-describedby={touched.email && emailError ? 'email-error' : undefined}
-            />
-            {touched.email && emailError && (
-              <div className="login-field-error" id="email-error" role="alert">
-                <Icon name="AlertCircle" size={13} color="#dc2626" />
-                {emailError}
+      <div className="login-demo-notice">
+        <Icon name="Info" size={14} color="#b45309" />
+        <div><strong>Demo prototype.</strong> Any email + password proceeds to the {m.label} dashboard. No credentials are verified.</div>
+      </div>
+    </div>
+  );
+}
+
+function LoginPage({ setPage }) {
+  const [selectedRole, setSelectedRole] = useState(null);
+
+  const roles = [
+    {
+      id: 'gov',
+      title: 'Government',
+      subtitle: 'Department Portal',
+      desc: 'Post challenges, review startup matches and track pilot outcomes.',
+      color: '#173C70',
+      bg: '#EBF2FF',
+      border: '#b8d0f5',
+      Illustration: GovIllustration,
+    },
+    {
+      id: 'startup',
+      title: 'Startup',
+      subtitle: 'Innovation Portal',
+      desc: 'Discover government challenges and submit structured proposals.',
+      color: '#0F9D8A',
+      bg: '#E6F7F5',
+      border: '#9de0d8',
+      Illustration: StartupIllustration,
+    },
+    {
+      id: 'evaluator',
+      title: 'Admin',
+      subtitle: 'Evaluator Portal',
+      desc: 'Review and score startup proposals as an independent expert.',
+      color: '#6d28d9',
+      bg: '#F3EEFF',
+      border: '#c4b0f0',
+      Illustration: EvaluatorIllustration,
+    },
+  ];
+
+  if (selectedRole) {
+    const r = roles.find(x => x.id === selectedRole);
+    return (
+      <div className="login-page">
+        {/* Left branding panel */}
+        <div className="login-brand" style={{ background: r.color }}>
+          <div className="login-brand-inner">
+            <div className="login-brand-logo">
+              <div className="logo-mark" style={{ width:44, height:44 }}>
+                <Icon name="Building2" size={22} color="#fff" />
               </div>
-            )}
-          </div>
-
-          {/* Password */}
-          <div className="login-field">
-            <label className="login-label" htmlFor="login-password">Password</label>
-            <div className="login-pw-wrap">
-              <input
-                id="login-password"
-                className="login-input"
-                type={showPw ? 'text' : 'password'}
-                placeholder="Enter your password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                onBlur={() => setTouched(t => ({ ...t, password: true }))}
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                className="login-pw-toggle"
-                onClick={() => setShowPw(v => !v)}
-                aria-label={showPw ? 'Hide password' : 'Show password'}
-              >
-                <Icon name={showPw ? 'EyeOff' : 'Eye'} size={16} color="#667085" />
-              </button>
+              <span className="login-brand-name">CivicBridge</span>
             </div>
-          </div>
-
-          {/* Submit */}
-          <button className="login-submit-btn" onClick={handleSubmit}>
-            <Icon name="LogIn" size={16} color="#fff" /> Sign In
-          </button>
-
-          {/* Register link */}
-          <p className="login-register-link">
-            Don't have an account?{' '}
-            <button className="login-link-btn" onClick={() => setPage('register')}>Get Started</button>
-          </p>
-
-          {/* Demo notice */}
-          <div className="login-demo-notice">
-            <Icon name="Info" size={14} color="#b45309" />
-            <div>
-              <strong>Demo prototype.</strong> No real authentication exists. Entering any email and password and clicking Sign In will route you to role selection. No credentials are verified or stored.
+            <div style={{ margin:'32px 0 24px', display:'flex', justifyContent:'center' }}>
+              <r.Illustration />
             </div>
+            <h2 className="login-brand-headline">{r.title} Portal</h2>
+            <p className="login-brand-sub">{r.desc}</p>
+            <button
+              onClick={() => setSelectedRole(null)}
+              style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:24, background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', borderRadius:8, padding:'8px 16px', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}
+            >
+              <Icon name="ArrowLeft" size={13} color="#fff" /> Switch role
+            </button>
           </div>
-
-          {/* Back link */}
-          <button className="login-back-btn" onClick={() => setPage('home')}>
+        </div>
+        {/* Right form panel */}
+        <div className="login-form-panel">
+          <RoleLoginForm role={selectedRole} setPage={setPage} />
+          <button className="login-back-btn" style={{ marginTop:16 }} onClick={() => setPage('home')}>
             <Icon name="ArrowLeft" size={13} color="#667085" /> Back to homepage
           </button>
         </div>
       </div>
+    );
+  }
+
+  // Role selection landing
+  return (
+    <div className="rl-page">
+      {/* Header */}
+      <div className="rl-header">
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20 }}>
+          <div className="logo-mark" style={{ width:40, height:40 }}>
+            <Icon name="Building2" size={20} color="#fff" />
+          </div>
+          <span style={{ fontSize:20, fontWeight:800, color:'#173C70', letterSpacing:'-0.3px' }}>CivicBridge</span>
+        </div>
+        <h1 className="rl-heading">Welcome back</h1>
+        <p className="rl-sub">Choose your portal to sign in. New here? <button className="login-link-btn" onClick={() => setPage('register')}>Create an account.</button></p>
+      </div>
+
+      {/* 3 role cards */}
+      <div className="rl-grid">
+        {roles.map(r => (
+          <button
+            key={r.id}
+            className="rl-card"
+            style={{ '--rl-color': r.color, '--rl-bg': r.bg, '--rl-border': r.border }}
+            onClick={() => setSelectedRole(r.id)}
+          >
+            {/* Illustration area */}
+            <div className="rl-card-illo" style={{ background: r.bg }}>
+              <r.Illustration />
+            </div>
+            {/* Text */}
+            <div className="rl-card-body">
+              <div className="rl-card-title" style={{ color: r.color }}>{r.title}</div>
+              <div className="rl-card-subtitle">{r.subtitle}</div>
+              <p className="rl-card-desc">{r.desc}</p>
+            </div>
+            {/* CTA */}
+            <div className="rl-card-cta" style={{ background: r.color }}>
+              Sign in as {r.title} <Icon name="ArrowRight" size={14} color="#fff" />
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Demo notice */}
+      <div className="login-demo-notice" style={{ maxWidth:560, marginTop:24 }}>
+        <Icon name="Info" size={14} color="#b45309" />
+        <div><strong>Demo prototype.</strong> No real authentication. Select a role to access its dashboard.</div>
+      </div>
+
+      <button className="login-back-btn" style={{ marginTop:12 }} onClick={() => setPage('home')}>
+        <Icon name="ArrowLeft" size={13} color="#667085" /> Back to homepage
+      </button>
     </div>
   );
 }
