@@ -202,6 +202,53 @@ function clearSession() {
   }
 }
 
+const API_BASE_URL = 'http://localhost:8080';
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+
+  const rawText = await response.text();
+  let payload = rawText;
+
+  if (rawText && (rawText.trim().startsWith('{') || rawText.trim().startsWith('['))) {
+    try {
+      payload = JSON.parse(rawText);
+    } catch (_) {
+      payload = rawText;
+    }
+  }
+
+  if (!response.ok) {
+    const message = typeof payload === 'object' && payload !== null
+      ? (payload.error || payload.message || `Request failed (${response.status})`)
+      : (typeof payload === 'string' && payload ? payload : `Request failed (${response.status})`);
+    throw new Error(message);
+  }
+
+  return payload;
+}
+
+function normalizeChallengeRecord(item) {
+  const stage = item.status || item.stage || 'Open';
+  return {
+    id: item.id,
+    title: item.title,
+    dept: item.dept,
+    category: item.category,
+    deadline: item.deadline,
+    desc: item.description || item.desc || 'No description available.',
+    stage,
+    badge: stage === 'Pilot' ? 'badge-teal' : stage === 'Evaluation' ? 'badge-amber' : stage === 'AI Matching' ? 'badge-blue' : 'badge-purple',
+    tags: Array.isArray(item.tags) ? item.tags : [],
+  };
+}
+
 // Derive two-letter initials from a full name (e.g. "Jane Doe" -> "JD").
 function getInitials(name) {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean);
@@ -459,9 +506,25 @@ function HomePage({ setPage }) {
                 How It Works
               </button>
             </div>
+            <div className="home-hero-pills">
+              <div className="home-hero-pill">
+                <Icon name="Building2" size={14} color="#173C70" /> Public sector
+              </div>
+              <div className="home-hero-pill home-hero-pill-alt">
+                <Icon name="Rocket" size={14} color="#0F9D8A" /> Startup-ready
+              </div>
+              <div className="home-hero-pill">
+                <Icon name="ShieldCheck" size={14} color="#0a7a6e" /> Trusted review process
+              </div>
+              <div className="home-hero-pill home-hero-pill-alt">
+                <Icon name="Users" size={14} color="#173C70" /> Matching & pilots
+              </div>
+            </div>
           </div>
           <div className="home-hero-right">
-            <HeroPreview />
+            <div className="home-hero-visual">
+              <HeroPreview />
+            </div>
           </div>
         </div>
       </section>
@@ -600,11 +663,36 @@ function HomePage({ setPage }) {
 
 // ── Challenges Page ───────────────────────────────────────────────────────────
 function ChallengesPage({ setPage }) {
-  const [query, setQuery]           = useState('');
+  const [query, setQuery] = useState('');
   const [stageFilter, setStageFilter] = useState('All');
+  const [backendChallenges, setBackendChallenges] = useState(null);
   const stages = ['All', 'Open', 'AI Matching', 'Evaluation', 'Pilot'];
 
-  const filtered = PUBLIC_CHALLENGES.filter(c => {
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadChallenges() {
+      try {
+        const data = await apiRequest('/api/challenges');
+        if (!ignore) {
+          const normalized = Array.isArray(data) ? data.map(normalizeChallengeRecord) : [];
+          setBackendChallenges(normalized);
+        }
+      } catch (_) {
+        if (!ignore) {
+          setBackendChallenges(PUBLIC_CHALLENGES);
+        }
+      }
+    }
+
+    loadChallenges();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const displayChallenges = backendChallenges ?? PUBLIC_CHALLENGES;
+  const filtered = displayChallenges.filter(c => {
     const q = query.toLowerCase();
     const matchQ = c.title.toLowerCase().includes(q) || c.dept.toLowerCase().includes(q);
     const matchS = stageFilter === 'All' || c.stage === stageFilter;
@@ -688,7 +776,7 @@ function ChallengesPage({ setPage }) {
           {/* Result count + reset */}
           <div className="chall-toolbar-meta">
             <span className="chall-result-count">
-              {filtered.length} of {PUBLIC_CHALLENGES.length} challenges
+              {filtered.length} of {displayChallenges.length} challenges
             </span>
             {isFiltered && (
               <button className="chall-reset-btn" onClick={reset}>
@@ -1354,6 +1442,7 @@ function RoleLoginForm({ role, setPage }) {
   const [password,   setPassword]   = useState('');
   const [showPw,     setShowPw]     = useState(false);
   const [emailError, setEmailError] = useState('');
+  const [apiError,   setApiError]   = useState('');
   const [touched,    setTouched]    = useState({ email:false, password:false });
 
   const META = {
@@ -1369,12 +1458,29 @@ function RoleLoginForm({ role, setPage }) {
     return '';
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const err = validateEmail(email);
     setTouched({ email:true, password:true });
     setEmailError(err);
+    setApiError('');
     if (err) return;
-    setPage(m.dest);
+
+    try {
+      const payload = await apiRequest('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+
+      setSession({
+        email: payload.email || email.trim(),
+        role: payload.role || role,
+        fullName: payload.fullName || 'User',
+        token: payload.token || '',
+      });
+      setPage(m.dest);
+    } catch (error) {
+      setApiError(error.message || 'Unable to sign in right now. Please check your credentials and try again.');
+    }
   }
 
   return (
@@ -1428,6 +1534,12 @@ function RoleLoginForm({ role, setPage }) {
         </div>
       </div>
 
+      {apiError && (
+        <div className="login-field-error" role="alert" style={{ marginBottom:12 }}>
+          <Icon name="AlertCircle" size={13} color="#dc2626" />{apiError}
+        </div>
+      )}
+
       <button className="login-submit-btn" style={{ background:m.color }} onClick={handleSubmit}>
         <Icon name="LogIn" size={16} color="#fff" /> Sign In
       </button>
@@ -1439,7 +1551,7 @@ function RoleLoginForm({ role, setPage }) {
 
       <div className="login-demo-notice">
         <Icon name="Info" size={14} color="#b45309" />
-        <div><strong>Demo prototype.</strong> Any email + password proceeds to the {m.label} dashboard. No credentials are verified.</div>
+        <div><strong>Secure sign-in.</strong> Your credentials are validated by the CivicBridge backend API.</div>
       </div>
     </div>
   );
@@ -1560,10 +1672,10 @@ function LoginPage({ setPage }) {
         ))}
       </div>
 
-      {/* Demo notice */}
+      {/* Secure auth notice */}
       <div className="login-demo-notice" style={{ maxWidth:560, marginTop:24 }}>
         <Icon name="Info" size={14} color="#b45309" />
-        <div><strong>Demo prototype.</strong> No real authentication. Select a role to access its dashboard.</div>
+        <div><strong>Secure sign-in.</strong> Choose a portal and authenticate with your CivicBridge account.</div>
       </div>
 
       <button className="login-back-btn" style={{ marginTop:12 }} onClick={() => setPage('home')}>
@@ -1650,10 +1762,10 @@ function RoleSelectPage({ setPage }) {
         ))}
       </div>
 
-      {/* Demo notice */}
+      {/* Secure auth notice */}
       <div className="role-select-demo-note">
         <Icon name="Info" size={14} color="#b45309" />
-        <span>Demo prototype — registration forms are frontend-only. No real account is created and no data is sent to any server.</span>
+        <span>Secure registration — new accounts are created on the CivicBridge backend and can be used to sign in immediately.</span>
       </div>
 
       {/* Back */}
@@ -4491,7 +4603,7 @@ function RegSuccess({ icon, iconBg, heading, sub, onDashboard, onHome, dashLabel
       </div>
       <div className="reg-demo-notice">
         <Icon name="Info" size={14} color="#b45309" />
-        <span><strong>Demo prototype.</strong> No account has been created on any server. This is a frontend-only simulation. Do not enter real passwords or sensitive personal information.</span>
+        <span><strong>Secure registration.</strong> Your account was created on the backend and is ready for sign-in.</span>
       </div>
     </div>
   );
@@ -4518,11 +4630,41 @@ function GovRegisterPage({ setPage }) {
     designation: !f.designation ? 'Please select a designation.' : '',
   };
 
-  function handleSubmit() {
+  async function handleSubmit() {
     setT({ name:true, email:true, password:true, confirm:true, dept:true, designation:true });
     if (Object.values(errors).some(Boolean)) return;
-    // TODO: POST /api/auth/register { role:'gov', ...f } — connect to backend here
-    setSubmitted(true);
+
+    try {
+      await apiRequest('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          fullName: f.name.trim(),
+          email: f.email.trim(),
+          password: f.password,
+          role: 'gov',
+          department: f.dept,
+          designation: f.designation,
+        }),
+      });
+
+      const loginResponse = await apiRequest('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: f.email.trim(),
+          password: f.password,
+        }),
+      });
+
+      setSession({
+        email: loginResponse.email || f.email.trim(),
+        role: loginResponse.role || 'gov',
+        fullName: loginResponse.fullName || f.name.trim(),
+        token: loginResponse.token || '',
+      });
+      setSubmitted(true);
+    } catch (error) {
+      window.alert(error.message || 'Unable to register at the moment.');
+    }
   }
 
   return (
@@ -4586,7 +4728,7 @@ function GovRegisterPage({ setPage }) {
               </p>
               <div className="reg-demo-notice">
                 <Icon name="Info" size={14} color="#b45309" />
-                <span><strong>Demo prototype.</strong> No real account is created. No data is sent to any server. Do not enter real passwords or government IDs.</span>
+                <span><strong>Secure registration.</strong> Your account is created on the CivicBridge backend and can be used to sign in immediately.</span>
               </div>
               <div style={{ display:'flex', gap:12, marginTop:16, flexWrap:'wrap' }}>
                 <button className="login-back-btn" onClick={() => setPage('register')}>
@@ -4625,12 +4767,42 @@ function StartupRegisterPage({ setPage }) {
     website:     f.website && !/^https?:\/\/.+/.test(f.website.trim()) ? 'Enter a valid URL starting with http:// or https://' : '',
   };
 
-  function handleSubmit() {
+  async function handleSubmit() {
     setT({ name:true, email:true, password:true, confirm:true, startupName:true, domain:true, website:!!f.website });
     const required = ['name','email','password','confirm','startupName','domain'];
     if (required.some(k => errors[k]) || errors.website) return;
-    // TODO: POST /api/auth/register { role:'startup', ...f } — connect to backend here
-    setSubmitted(true);
+
+    try {
+      await apiRequest('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          fullName: f.name.trim(),
+          email: f.email.trim(),
+          password: f.password,
+          role: 'startup',
+          department: f.domain,
+          designation: 'Founder',
+        }),
+      });
+
+      const loginResponse = await apiRequest('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: f.email.trim(),
+          password: f.password,
+        }),
+      });
+
+      setSession({
+        email: loginResponse.email || f.email.trim(),
+        role: loginResponse.role || 'startup',
+        fullName: loginResponse.fullName || f.name.trim(),
+        token: loginResponse.token || '',
+      });
+      setSubmitted(true);
+    } catch (error) {
+      window.alert(error.message || 'Unable to register at the moment.');
+    }
   }
 
   return (
@@ -4695,7 +4867,7 @@ function StartupRegisterPage({ setPage }) {
               </p>
               <div className="reg-demo-notice">
                 <Icon name="Info" size={14} color="#b45309" />
-                <span><strong>Demo prototype.</strong> No real account is created. No data is sent to any server.</span>
+                <span><strong>Secure registration.</strong> Your startup account is created on the backend and ready for sign-in.</span>
               </div>
               <div style={{ display:'flex', gap:12, marginTop:16, flexWrap:'wrap' }}>
                 <button className="login-back-btn" onClick={() => setPage('register')}>
@@ -4732,11 +4904,41 @@ function EvaluatorRegisterPage({ setPage }) {
     expertise: !f.expertise ? 'Please select your primary expertise.' : '',
   };
 
-  function handleSubmit() {
+  async function handleSubmit() {
     setT({ name:true, email:true, password:true, confirm:true, expertise:true });
     if (Object.values(errors).some(Boolean)) return;
-    // TODO: POST /api/auth/register { role:'evaluator', ...f } — connect to backend here
-    setSubmitted(true);
+
+    try {
+      await apiRequest('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          fullName: f.name.trim(),
+          email: f.email.trim(),
+          password: f.password,
+          role: 'evaluator',
+          department: f.expertise,
+          designation: 'Evaluator',
+        }),
+      });
+
+      const loginResponse = await apiRequest('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: f.email.trim(),
+          password: f.password,
+        }),
+      });
+
+      setSession({
+        email: loginResponse.email || f.email.trim(),
+        role: loginResponse.role || 'evaluator',
+        fullName: loginResponse.fullName || f.name.trim(),
+        token: loginResponse.token || '',
+      });
+      setSubmitted(true);
+    } catch (error) {
+      window.alert(error.message || 'Unable to register at the moment.');
+    }
   }
 
   return (
@@ -4798,7 +5000,7 @@ function EvaluatorRegisterPage({ setPage }) {
               </p>
               <div className="reg-demo-notice">
                 <Icon name="Info" size={14} color="#b45309" />
-                <span><strong>Demo prototype.</strong> No real account is created. No data is sent to any server.</span>
+                <span><strong>Secure registration.</strong> Your evaluator account is created on the backend and ready for review access.</span>
               </div>
               <div style={{ display:'flex', gap:12, marginTop:16, flexWrap:'wrap' }}>
                 <button className="login-back-btn" onClick={() => setPage('register')}>

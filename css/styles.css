@@ -9,10 +9,16 @@ body { margin: 0; }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes floatY {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
 .fade-in { animation: fadeIn 0.35s ease both; }
 
 @media (prefers-reduced-motion: reduce) {
   .fade-in { animation: none; }
+  .hero-float-badge { animation: none; }
 }
 
 /* ── Layout shell ── */
@@ -1509,6 +1515,10 @@ tbody td {
   align-items: center;
 }
 
+.home-hero-left {
+  position: relative;
+}
+
 .home-hero-eyebrow {
   display: inline-flex;
   align-items: center;
@@ -1522,6 +1532,7 @@ tbody td {
   padding: 5px 14px;
   border-radius: 20px;
   margin-bottom: 24px;
+  box-shadow: inset 0 0 0 1px rgba(15,157,138,0.08);
 }
 
 .home-hero-headline {
@@ -1550,8 +1561,81 @@ tbody td {
   flex-wrap: wrap;
 }
 
+.home-hero-pills {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+  padding-left: 2px;
+  max-width: 500px;
+}
+
+.home-hero-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  background: rgba(255,255,255,0.74);
+  border: 1px solid #E5EAF1;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #182230;
+  line-height: 1.2;
+  text-align: center;
+  box-shadow: 0 6px 18px rgba(23,60,112,0.04);
+}
+
+.home-hero-pill-alt {
+  background: #EBF2FF;
+  border-color: #dfeaff;
+}
+
+.home-hero-right {
+  position: relative;
+}
+
+.home-hero-visual {
+  position: relative;
+  padding-top: 16px;
+}
+
+.hero-float-badge {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  background: rgba(255,255,255,0.94);
+  border: 1px solid rgba(229,234,241,0.9);
+  box-shadow: 0 14px 30px rgba(23,60,112,0.08);
+  z-index: 2;
+  animation: floatY 6s ease-in-out infinite;
+}
+
+.hero-badge-gov {
+  top: -4px;
+  left: -16px;
+  color: #173C70;
+}
+
+.hero-badge-startup {
+  right: -14px;
+  bottom: 54px;
+  animation-delay: 1.5s;
+  color: #0a7a6e;
+}
+
 /* ── Hero product preview ── */
 .home-preview-shell {
+  position: relative;
   background: #fff;
   border: 1px solid #E5EAF1;
   border-radius: 14px;
@@ -3668,6 +3752,7 @@ tbody td {
 
 /* ── Individual role card ── */
 .role-select-card {
+  position: relative;
   background: #fff;
   border: 2px solid #E5EAF1;
   border-radius: 16px;
@@ -3677,6 +3762,18 @@ tbody td {
   cursor: pointer;
   transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
   outline: none;
+  overflow: hidden;
+}
+
+.role-select-card::before {
+  content: "";
+  position: absolute;
+  top: -30px;
+  right: -20px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(15,157,138,0.12), rgba(15,157,138,0) 68%);
+  pointer-events: none;
 }
 
 .role-select-card:hover,
@@ -3699,6 +3796,7 @@ tbody td {
   justify-content: center;
   margin-bottom: 20px;
   flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25);
 }
 
 .role-select-card-title {
