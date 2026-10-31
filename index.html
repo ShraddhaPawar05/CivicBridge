@@ -1,4 +1,5 @@
-﻿<!DOCTYPE html>
+﻿git add .
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -388,6 +389,70 @@ function normalizeChallengeRecord(item) {
     stage,
     badge: stage === 'Pilot' ? 'badge-teal' : stage === 'Evaluation' ? 'badge-amber' : stage === 'AI Matching' ? 'badge-blue' : 'badge-purple',
     tags: Array.isArray(item.tags) ? item.tags : [],
+  };
+}
+
+function normalizeProposalRecord(item) {
+  return {
+    id: item.id,
+    challengeId: item.challengeId || item.challenge_id || null,
+    startupId: item.startupId || item.startup_id || null,
+    startupName: item.startupName || item.startup_name || 'Startup applicant',
+    title: item.title || 'Untitled proposal',
+    description: item.description || item.summary || 'No description provided.',
+    solution: item.solution || item.summary || 'No solution summary provided.',
+    status: item.status || 'Pending Review',
+    submissionDate: item.submissionDate || item.submittedDate || new Date().toISOString().slice(0, 10),
+    estimatedBudget: Number(item.estimatedBudget ?? item.budget ?? 0),
+    technologies: Array.isArray(item.technologies) ? item.technologies : [],
+    expectedOutcomes: item.expectedOutcomes || item.summary || 'No expected outcomes provided.',
+    reviewNote: item.reviewNote || '',
+  };
+}
+
+function normalizeMatchRecord(item) {
+  const name = item.name || item.startupName || item.startup_name || 'Startup';
+  const initials = item.initials || name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'ST';
+  return {
+    id: item.id,
+    challengeId: item.challengeId || item.challenge_id || null,
+    startupId: item.startupId || item.startup_id || null,
+    name,
+    startupName: item.startupName || item.startup_name || name,
+    initials,
+    color: item.color || '#173C70',
+    domain: item.domain || 'General',
+    description: item.description || item.rationale || 'No description provided.',
+    matchScore: Number(item.matchScore ?? item.score ?? 0),
+    status: item.status || 'Pending Review',
+    technologies: Array.isArray(item.technologies) ? item.technologies : Array.isArray(item.tags) ? item.tags : [],
+  };
+}
+
+function normalizeEvaluationRecord(item) {
+  return {
+    proposalId: Number(item.proposalId ?? item.proposal_id ?? 0),
+    status: item.status || 'Pending',
+    scores: item.scores && typeof item.scores === 'object' ? item.scores : {},
+    comments: item.comments || '',
+    recommendation: item.recommendation || '',
+  };
+}
+
+function normalizePilotRecord(item) {
+  return {
+    id: item.id,
+    name: item.name || 'Pilot',
+    challengeId: item.challengeId || item.challenge_id || null,
+    startupId: item.startupId || item.startup_id || null,
+    department: item.department || 'Department',
+    startDate: item.startDate || item.start_date || '',
+    endDate: item.endDate || item.end_date || '',
+    status: item.status || 'Planned',
+    progress: Number(item.progress ?? 0),
+    objectives: item.objectives || 'No objectives provided.',
+    milestones: Array.isArray(item.milestones) ? item.milestones : [],
+    notes: item.notes || '',
   };
 }
 
@@ -3555,7 +3620,7 @@ function StartupMatchReviewModal({ match, onClose, onSave }) {
   );
 }
 
-function StartupMatchesPage({ matches, setMatches, challenges, onOpenChallenge }) {
+function StartupMatchesPage({ matches, setMatches, challenges, onOpenChallenge, loading = false, error = '' }) {
   const [search, setSearch] = useState('');
   const [scoreFilter, setScoreFilter] = useState('All');
   const [domainFilter, setDomainFilter] = useState('All');
@@ -3626,6 +3691,7 @@ function StartupMatchesPage({ matches, setMatches, challenges, onOpenChallenge }
         </div>
       </div>
       {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}</div>}
+      {error && <div className="mc-notice" role="alert" style={{ background:'#FEF2F2', color:'#991B1B', border:'1px solid #FECACA' }}><Icon name="AlertCircle" size={16} color="#991B1B" /> {error}</div>}
 
       <div className="summary-grid sm-summary-grid">
         {summaries.map(card => <div key={card.label} className="summary-card"><div className="summary-icon" style={{ background:card.bg }}><Icon name={card.icon} size={20} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}
@@ -3642,7 +3708,13 @@ function StartupMatchesPage({ matches, setMatches, challenges, onOpenChallenge }
           </div>
         </div>
 
-        {filtered.length ? <div className="sm-match-grid">
+        {loading ? (
+          <div className="mc-empty-state">
+            <div className="mc-empty-icon"><Icon name="LoaderCircle" size={22} color="#173C70" /></div>
+            <h2>Loading startup matches…</h2>
+            <p>Please wait while we refresh the latest recommendations.</p>
+          </div>
+        ) : filtered.length ? <div className="sm-match-grid">
           {filtered.map(match => {
             const challenge = challengeById(match.challengeId);
             return <article className="sm-match-card" key={match.id}>
@@ -3776,7 +3848,7 @@ function ProposalReviewModal({ proposal, onClose, onSave }) {
   );
 }
 
-function ProposalsPage({ proposals, setProposals, challenges, onOpenChallenge }) {
+function ProposalsPage({ proposals, setProposals, challenges, onOpenChallenge, loading = false, error = '' }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [challengeFilter, setChallengeFilter] = useState('All');
@@ -3822,6 +3894,7 @@ function ProposalsPage({ proposals, setProposals, challenges, onOpenChallenge })
         <div><h1 className="mc-page-title">Proposals</h1><p className="mc-page-subtitle">Review startup solutions submitted for your department’s challenges.</p></div>
       </div>
       {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice} <span className="pr-demo-caption">Demo session only.</span></div>}
+      {error && <div className="mc-notice" role="alert" style={{ background:'#FEF2F2', color:'#991B1B', border:'1px solid #FECACA' }}><Icon name="AlertCircle" size={16} color="#991B1B" /> {error}</div>}
 
       <div className="summary-grid pr-summary-grid">
         {summaryCards.map(card => <div key={card.label} className="summary-card"><div className="summary-icon" style={{ background:card.bg }}><Icon name={card.icon} size={20} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}
@@ -3837,7 +3910,13 @@ function ProposalsPage({ proposals, setProposals, challenges, onOpenChallenge })
           </div>
         </div>
 
-        {filtered.length ? <div className="table-wrap pr-table-wrap">
+        {loading ? (
+          <div className="mc-empty-state">
+            <div className="mc-empty-icon"><Icon name="LoaderCircle" size={22} color="#173C70" /></div>
+            <h2>Loading proposals…</h2>
+            <p>Please wait while we fetch the latest proposal data.</p>
+          </div>
+        ) : filtered.length ? <div className="table-wrap pr-table-wrap">
           <table className="pr-table">
             <thead><tr>{['Proposal','Startup','Related challenge','Submitted','Status','Actions'].map(label => <th key={label}>{label}</th>)}</tr></thead>
             <tbody>{filtered.map(proposal => {
@@ -3969,7 +4048,7 @@ function EvaluationEditorModal({ proposal, evaluation, challenge, onClose, onSav
   );
 }
 
-function EvaluationPage({ proposals, evaluations, setEvaluations, startups, challenges, onOpenChallenge, scope='all' }) {
+function EvaluationPage({ proposals, evaluations, setEvaluations, startups, challenges, onOpenChallenge, scope='all', loading = false, error = '' }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [challengeFilter, setChallengeFilter] = useState('All');
@@ -4024,6 +4103,7 @@ function EvaluationPage({ proposals, evaluations, setEvaluations, startups, chal
     <div className="page-content evaluation-page">
       <div className="welcome-bar"><div><h1 className="mc-page-title">{scope==='queue'?'Review Queue':scope==='active'?'Active Reviews':scope==='completed'?'Completed Evaluations':'Evaluation'}</h1><p className="mc-page-subtitle">{scope==='queue'?'Review submitted startup proposals and record a recommendation.':scope==='active'?'Continue draft or flagged proposal evaluations.':scope==='completed'?'Review submitted evaluation decisions and scores.':'Score startup proposals against consistent criteria and record a clear recommendation.'}</p></div></div>
       {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}<span className="ev-demo-caption">Demo session only.</span></div>}
+      {error && <div className="mc-notice" role="alert" style={{ background:'#FEF2F2', color:'#991B1B', border:'1px solid #FECACA' }}><Icon name="AlertCircle" size={16} color="#991B1B" /> {error}</div>}
 
       <div className="summary-grid ev-summary-grid">{summaries.map(card => <div key={card.label} className="summary-card"><div className="summary-icon" style={{ background:card.bg }}><Icon name={card.icon} size={20} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}</div>
 
@@ -4138,7 +4218,7 @@ function PilotEditorModal({ pilot, onClose, onSave }) {
   );
 }
 
-function PilotTrackingPage({ pilots, setPilots, challenges, startups, onOpenChallenge }) {
+function PilotTrackingPage({ pilots, setPilots, challenges, startups, onOpenChallenge, loading = false, error = '' }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [departmentFilter, setDepartmentFilter] = useState('All');
@@ -4184,11 +4264,18 @@ function PilotTrackingPage({ pilots, setPilots, challenges, startups, onOpenChal
     <div className="page-content pilot-page">
       <div className="welcome-bar"><div><h1 className="mc-page-title">Pilot Tracking</h1><p className="mc-page-subtitle">Monitor delivery milestones, timelines, and outcomes across active pilots.</p></div></div>
       {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}<span className="pt-demo-caption">Demo session only.</span></div>}
+      {error && <div className="mc-notice" role="alert" style={{ background:'#FEF2F2', color:'#991B1B', border:'1px solid #FECACA' }}><Icon name="AlertCircle" size={16} color="#991B1B" /> {error}</div>}
 
       <div className="summary-grid pt-summary-grid">{summaries.map(card => <div key={card.label} className="summary-card"><div className="summary-icon" style={{ background:card.bg }}><Icon name={card.icon} size={20} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}</div>
 
       <section className="card pt-list-card"><div className="card-header pt-list-header"><div><div className="card-title">Government Pilots</div><div className="mc-result-count">Showing {filtered.length} of {pilots.length} pilots</div></div><div className="pt-toolbar"><div className="search-wrap pt-search"><span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span><input type="search" aria-label="Search pilot, challenge, or startup" placeholder="Search challenge or startup…" value={search} onChange={event => setSearch(event.target.value)} /></div><select className="form-select pt-filter" aria-label="Filter pilots by status" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="All">All statuses</option>{['Planned','In Progress','Completed','Delayed'].map(status => <option key={status}>{status}</option>)}</select><select className="form-select pt-filter" aria-label="Filter pilots by department" value={departmentFilter} onChange={event => setDepartmentFilter(event.target.value)}><option value="All">All departments</option>{departments.map(department => <option key={department}>{department}</option>)}</select><label className="pt-date-filter"><span>End by</span><input type="date" aria-label="Filter pilots ending by date" value={endByDate} onChange={event => setEndByDate(event.target.value)} /></label></div></div>
-        {filtered.length ? <div className="table-wrap pt-table-wrap"><table className="pt-table"><thead><tr>{['Pilot','Challenge','Startup','Department','Start date','End date','Progress','Status','Actions'].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{filtered.map(pilot => {const challenge=challengeById(pilot.challengeId);const startup=startupById(pilot.startupId);return <tr key={pilot.id}><td className="pt-name-cell" data-label="Pilot">{pilot.name}</td><td data-label="Challenge">{challenge?.title || 'Challenge unavailable'}</td><td data-label="Startup">{startup?.name || 'Startup unavailable'}</td><td data-label="Department">{pilot.department}</td><td data-label="Start date">{formatProposalDate(pilot.startDate)}</td><td data-label="End date">{formatProposalDate(pilot.endDate)}</td><td className="pt-progress-cell" data-label="Progress"><div className="pt-progress-track"><span style={{ width:`${pilot.progress}%` }} /></div><strong>{pilot.progress}%</strong></td><td data-label="Status"><span className={`badge ${pilotStatusBadge(pilot.status)}`}>{pilot.status}</span></td><td className="pt-actions-cell" data-label="Actions"><div className="pt-row-actions"><button className="btn-secondary pt-action-btn" onClick={() => setDialog({ type:'details', pilot })}><Icon name="Eye" size={14} /> Details</button><button className="btn-primary pt-action-btn" onClick={() => setDialog({ type:'edit', pilot })}><Icon name="Pencil" size={14} color="#fff" /> Update</button></div></td></tr>;})}</tbody></table></div> : <div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="SearchX" size={22} color="#173C70" /></div><h2>No pilots found</h2><p>Try another search, department, status, or end date.</p><button className="btn-secondary" onClick={resetFilters}>Clear filters</button></div>}
+        {loading ? (
+          <div className="mc-empty-state">
+            <div className="mc-empty-icon"><Icon name="LoaderCircle" size={22} color="#173C70" /></div>
+            <h2>Loading pilot records…</h2>
+            <p>Please wait while the pilot portfolio refreshes.</p>
+          </div>
+        ) : filtered.length ? <div className="table-wrap pt-table-wrap"><table className="pt-table"><thead><tr>{['Pilot','Challenge','Startup','Department','Start date','End date','Progress','Status','Actions'].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{filtered.map(pilot => {const challenge=challengeById(pilot.challengeId);const startup=startupById(pilot.startupId);return <tr key={pilot.id}><td className="pt-name-cell" data-label="Pilot">{pilot.name}</td><td data-label="Challenge">{challenge?.title || 'Challenge unavailable'}</td><td data-label="Startup">{startup?.name || 'Startup unavailable'}</td><td data-label="Department">{pilot.department}</td><td data-label="Start date">{formatProposalDate(pilot.startDate)}</td><td data-label="End date">{formatProposalDate(pilot.endDate)}</td><td className="pt-progress-cell" data-label="Progress"><div className="pt-progress-track"><span style={{ width:`${pilot.progress}%` }} /></div><strong>{pilot.progress}%</strong></td><td data-label="Status"><span className={`badge ${pilotStatusBadge(pilot.status)}`}>{pilot.status}</span></td><td className="pt-actions-cell" data-label="Actions"><div className="pt-row-actions"><button className="btn-secondary pt-action-btn" onClick={() => setDialog({ type:'details', pilot })}><Icon name="Eye" size={14} /> Details</button><button className="btn-primary pt-action-btn" onClick={() => setDialog({ type:'edit', pilot })}><Icon name="Pencil" size={14} color="#fff" /> Update</button></div></td></tr>;})}</tbody></table></div> : <div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="SearchX" size={22} color="#173C70" /></div><h2>No pilots found</h2><p>Try another search, department, status, or end date.</p><button className="btn-secondary" onClick={resetFilters}>Clear filters</button></div>}
       </section>
       {dialog?.type === 'details' && <PilotDetailsModal pilot={dialog.pilot} startup={startupById(dialog.pilot.startupId)} challenge={challengeById(dialog.pilot.challengeId)} onClose={() => setDialog(null)} onEdit={pilot => setDialog({ type:'edit', pilot })} onOpenChallenge={id => { setDialog(null); onOpenChallenge(id); }} />}
       {dialog?.type === 'edit' && <PilotEditorModal key={dialog.pilot.id} pilot={dialog.pilot} onClose={() => setDialog(null)} onSave={savePilot} />}
@@ -4606,9 +4693,17 @@ function GovDashboard({ setPage }) {
   const [govChallengesLoading, setGovChallengesLoading] = useState(true);
   const [govChallengesError, setGovChallengesError] = useState('');
   const [govMatches, setGovMatches]             = useState(INITIAL_GOV_MATCHES);
-  const [govProposals, setGovProposals]         = useState(INITIAL_GOV_PROPOSALS);
+  const [govMatchesLoading, setGovMatchesLoading] = useState(true);
+  const [govMatchesError, setGovMatchesError] = useState('');
+  const [govProposals, setGovProposals]         = useState([]);
+  const [govProposalsLoading, setGovProposalsLoading] = useState(true);
+  const [govProposalsError, setGovProposalsError] = useState('');
   const [govEvaluations, setGovEvaluations]     = useState(INITIAL_GOV_EVALUATIONS);
+  const [govEvaluationsLoading, setGovEvaluationsLoading] = useState(true);
+  const [govEvaluationsError, setGovEvaluationsError] = useState('');
   const [govPilots, setGovPilots]               = useState(INITIAL_GOV_PILOTS);
+  const [govPilotsLoading, setGovPilotsLoading] = useState(true);
+  const [govPilotsError, setGovPilotsError] = useState('');
   const [govSettings, setGovSettings]           = useState(() => ({ ...INITIAL_GOV_SETTINGS, notifications:{ ...INITIAL_GOV_SETTINGS.notifications } }));
   const [displayDensity, setDisplayDensity]     = useState(INITIAL_GOV_SETTINGS.density);
   const [challengeSearchSeed, setChallengeSearchSeed] = useState('');
@@ -4645,7 +4740,103 @@ function GovDashboard({ setPage }) {
       }
     }
 
+    async function loadProposals() {
+      try {
+        setGovProposalsLoading(true);
+        setGovProposalsError('');
+        const data = await CivicBridgeApi.proposals.list();
+        if (ignore) return;
+
+        const normalized = Array.isArray(data)
+          ? data.map(item => normalizeProposalRecord(item))
+          : INITIAL_GOV_PROPOSALS;
+
+        setGovProposals(normalized);
+      } catch (error) {
+        if (ignore) return;
+        setGovProposalsError(error.message || 'Unable to load proposals right now.');
+        setGovProposals(INITIAL_GOV_PROPOSALS);
+      } finally {
+        if (!ignore) {
+          setGovProposalsLoading(false);
+        }
+      }
+    }
+
+    async function loadMatches() {
+      try {
+        setGovMatchesLoading(true);
+        setGovMatchesError('');
+        const data = await CivicBridgeApi.matches.list();
+        if (ignore) return;
+
+        const normalized = Array.isArray(data)
+          ? data.map(item => normalizeMatchRecord(item))
+          : INITIAL_GOV_MATCHES;
+
+        setGovMatches(normalized);
+      } catch (error) {
+        if (ignore) return;
+        setGovMatchesError(error.message || 'Unable to load startup matches right now.');
+        setGovMatches(INITIAL_GOV_MATCHES);
+      } finally {
+        if (!ignore) {
+          setGovMatchesLoading(false);
+        }
+      }
+    }
+
+    async function loadEvaluations() {
+      try {
+        setGovEvaluationsLoading(true);
+        setGovEvaluationsError('');
+        const data = await CivicBridgeApi.evaluations.list();
+        if (ignore) return;
+
+        const normalized = Array.isArray(data)
+          ? data.map(item => normalizeEvaluationRecord(item))
+          : INITIAL_GOV_EVALUATIONS;
+
+        setGovEvaluations(normalized);
+      } catch (error) {
+        if (ignore) return;
+        setGovEvaluationsError(error.message || 'Unable to load evaluations right now.');
+        setGovEvaluations(INITIAL_GOV_EVALUATIONS);
+      } finally {
+        if (!ignore) {
+          setGovEvaluationsLoading(false);
+        }
+      }
+    }
+
+    async function loadPilots() {
+      try {
+        setGovPilotsLoading(true);
+        setGovPilotsError('');
+        const data = await CivicBridgeApi.pilots.list();
+        if (ignore) return;
+
+        const normalized = Array.isArray(data)
+          ? data.map(item => normalizePilotRecord(item))
+          : INITIAL_GOV_PILOTS;
+
+        setGovPilots(normalized);
+      } catch (error) {
+        if (ignore) return;
+        setGovPilotsError(error.message || 'Unable to load pilot records right now.');
+        setGovPilots(INITIAL_GOV_PILOTS);
+      } finally {
+        if (!ignore) {
+          setGovPilotsLoading(false);
+        }
+      }
+    }
+
     loadChallenges();
+    loadProposals();
+    loadMatches();
+    loadEvaluations();
+    loadPilots();
     return () => { ignore = true; };
   }, []);
 
@@ -4701,13 +4892,13 @@ function GovDashboard({ setPage }) {
           : activeNav === 'challenges'
             ? <MyChallengesPage challenges={govChallenges} setChallenges={setGovChallenges} initialSearch={challengeSearchSeed} loading={govChallengesLoading} error={govChallengesError} />
             : activeNav === 'matches'
-              ? <StartupMatchesPage matches={govMatches} setMatches={setGovMatches} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} />
+              ? <StartupMatchesPage matches={govMatches} setMatches={setGovMatches} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} loading={govMatchesLoading} error={govMatchesError} />
               : activeNav === 'proposals'
-                ? <ProposalsPage proposals={govProposals} setProposals={setGovProposals} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} />
+                ? <ProposalsPage proposals={govProposals} setProposals={setGovProposals} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} loading={govProposalsLoading} error={govProposalsError} />
               : activeNav === 'evaluation'
-                ? <EvaluationPage proposals={govProposals} evaluations={govEvaluations} setEvaluations={setGovEvaluations} startups={govMatches} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} />
+                ? <EvaluationPage proposals={govProposals} evaluations={govEvaluations} setEvaluations={setGovEvaluations} startups={govMatches} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} loading={govEvaluationsLoading} error={govEvaluationsError} />
               : activeNav === 'pilot'
-                ? <PilotTrackingPage pilots={govPilots} setPilots={setGovPilots} challenges={govChallenges} startups={govMatches} onOpenChallenge={openRelatedChallenge} />
+                ? <PilotTrackingPage pilots={govPilots} setPilots={setGovPilots} challenges={govChallenges} startups={govMatches} onOpenChallenge={openRelatedChallenge} loading={govPilotsLoading} error={govPilotsError} />
               : activeNav === 'performance'
                 ? <PerformancePage challenges={govChallenges} matches={govMatches} proposals={govProposals} evaluations={govEvaluations} pilots={govPilots} onOpenChallenge={openRelatedChallenge} />
               : activeNav === 'settings'
