@@ -2395,7 +2395,7 @@ function StartupCompanyProfilePage({ profile, proposalCount, pilotCount, onBack,
     if(Object.values(nextErrors).some(Boolean))return;
     onSave({...form,companyName:form.companyName.trim(),founderName:form.founderName.trim(),email:form.email.trim(),domain:form.domain.trim(),location:form.location.trim(),description:form.description.trim(),website:form.website.trim()});
     setEditing(false);
-    setNotice('Company profile updated for this demo session.');
+    setNotice('Company profile updated for the current prototype.');
   }
 
   const field=(key,label,options={})=>(
@@ -2413,7 +2413,7 @@ function StartupCompanyProfilePage({ profile, proposalCount, pilotCount, onBack,
   return (
     <div className="page-content fade-in startup-company-profile-page">
       <div className="welcome-bar"><div><h1 className="mc-page-title">Company Profile</h1><p className="mc-page-subtitle">Review your startup details and proposal activity.</p></div><button className="btn-secondary" onClick={onBack}><Icon name="ArrowLeft" size={14} /> Overview</button></div>
-      {notice&&<div className="mc-notice" role="status"><Icon name="CheckCircle" size={15} color="#0F9D8A" />{notice}<span className="startup-session-caption">Session only.</span></div>}
+      {notice&&<div className="mc-notice" role="status"><Icon name="CheckCircle" size={15} color="#0F9D8A" />{notice}<span className="startup-session-caption">Prototype view.</span></div>}
       <section className="card startup-profile-card">
         <div className="startup-profile-heading"><div className="startup-avatar" style={{background:profile.color}}>{initials}</div><div><h2>{profile.companyName}</h2><span>{profile.location||'Location not provided'}{profile.founded?` · Founded ${profile.founded}`:''}</span></div></div>
         {!editing
@@ -2423,7 +2423,7 @@ function StartupCompanyProfilePage({ profile, proposalCount, pilotCount, onBack,
               <div className="startup-profile-actions"><button type="button" className="btn-secondary" onClick={()=>{setForm({...profile});setErrors({});setEditing(false);}}>Cancel</button><button type="submit" className="btn-primary"><Icon name="Save" size={14} color="#fff" /> Save Profile</button></div>
             </form>}
       </section>
-      <p className="startup-session-footnote">Profile information and counts come from frontend demo data and this dashboard session.</p>
+      <p className="startup-session-footnote">Profile information and counts come from the current prototype dataset and active dashboard session.</p>
     </div>
   );
 }
@@ -2455,7 +2455,7 @@ function StartupSettingsPage({ profile, defaults, preferences, onBack, onSave, o
     setErrors(nextErrors);
     if(Object.values(nextErrors).some(Boolean))return;
     onSave({...profile,companyName:form.companyName.trim(),domain:form.domain.trim(),location:form.location.trim()},{notifications:{...notifications},density});
-    setNotice('Startup settings saved for this demo session.');
+    setNotice('Startup settings saved for the current prototype.');
   }
   function confirmReset() {
     onReset();
@@ -2464,23 +2464,23 @@ function StartupSettingsPage({ profile, defaults, preferences, onBack, onSave, o
     setDensity('comfortable');
     onDensityChange('comfortable');
     setErrors({});
-    setNotice('Startup settings reset for this demo session.');
+    setNotice('Startup settings reset to the current prototype defaults.');
     setResetOpen(false);
   }
   const orgField=(key,label)=> <div className="form-group"><label className="form-label" htmlFor={`startup-settings-${key}`}>{label}</label><input id={`startup-settings-${key}`} className={`form-input${errors[key]?' mc-input-error':''}`} value={form[key]} onChange={update(key)} maxLength={100} />{errors[key]&&<span className="mc-field-error" role="alert">{errors[key]}</span>}</div>;
 
   return (
     <div className={`page-content settings-page density-${density} startup-settings-page`}>
-      <div className="welcome-bar"><div><h1 className="mc-page-title">Settings</h1><p className="mc-page-subtitle">Manage startup preferences for this demo session.</p></div><span className="badge badge-blue">Session only</span></div>
+      <div className="welcome-bar"><div><h1 className="mc-page-title">Settings</h1><p className="mc-page-subtitle">Manage startup preferences for the current prototype.</p></div><span className="badge badge-blue">Prototype view</span></div>
       {notice&&<div className="mc-notice" role="status"><Icon name="CheckCircle" size={15} color="#0F9D8A" />{notice}</div>}
       <form className="settings-form" onSubmit={save} noValidate>
-        <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon"><Icon name="Building2" size={17} color="#0F9D8A" /></div><div><h2>Organization preferences</h2><p>These details are shared with the Company Profile for this dashboard session.</p></div></div><div className="settings-grid">{orgField('companyName','Company display name')}{orgField('domain','Industry / domain')}<div className="settings-full">{orgField('location','Location')}</div></div></section>
-        <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon settings-icon-amber"><Icon name="BellRing" size={17} color="#b45309" /></div><div><h2>Notification preferences</h2><p>Choose which frontend demo activity you want to follow.</p></div></div><div className="settings-options">{[['challengeMatches','Challenge matches','When challenges match your startup domains.'],['proposalUpdates','Proposal updates','When a submitted proposal receives a status update.'],['pilotMilestones','Pilot milestones','When progress or milestone records change.']].map(([key,label,description])=><label className="settings-option" key={key}><span><strong>{label}</strong><small>{description}</small></span><input type="checkbox" checked={notifications[key]} onChange={()=>toggle(key)} aria-label={label} /></label>)}</div></section>
+        <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon"><Icon name="Building2" size={17} color="#0F9D8A" /></div><div><h2>Organization preferences</h2><p>These details are shared with the Company Profile in the active prototype.</p></div></div><div className="settings-grid">{orgField('companyName','Company display name')}{orgField('domain','Industry / domain')}<div className="settings-full">{orgField('location','Location')}</div></div></section>
+        <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon settings-icon-amber"><Icon name="BellRing" size={17} color="#b45309" /></div><div><h2>Notification preferences</h2><p>Choose which prototype activity you want to follow.</p></div></div><div className="settings-options">{[['challengeMatches','Challenge matches','When challenges match your startup domains.'],['proposalUpdates','Proposal updates','When a submitted proposal receives a status update.'],['pilotMilestones','Pilot milestones','When progress or milestone records change.']].map(([key,label,description])=><label className="settings-option" key={key}><span><strong>{label}</strong><small>{description}</small></span><input type="checkbox" checked={notifications[key]} onChange={()=>toggle(key)} aria-label={label} /></label>)}</div></section>
         <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon"><Icon name="SlidersHorizontal" size={17} color="#173C70" /></div><div><h2>Display preferences</h2><p>Choose spacing for supported dashboard lists and cards.</p></div></div><fieldset className="settings-density"><legend>Content density</legend><div className="settings-segment" role="radiogroup" aria-label="Startup content density">{[['comfortable','Comfortable'],['compact','Compact']].map(([value,label])=><button type="button" role="radio" aria-checked={density===value} className={density===value?'is-selected':''} key={value} onClick={()=>{setDensity(value);onDensityChange(value);setNotice('');}}>{label}</button>)}</div></fieldset></section>
         <div className="settings-footer"><button type="button" className="btn-secondary" onClick={()=>setResetOpen(true)}><Icon name="RotateCcw" size={14} /> Reset to Defaults</button><button type="submit" className="btn-primary"><Icon name="Save" size={14} color="#fff" /> Save Settings</button></div>
       </form>
-      <p className="startup-session-footnote">Preferences apply only to this dashboard session. Nothing is sent to a server.</p>
-      {resetOpen&&<div className="modal-overlay settings-modal" onClick={event=>{if(event.target===event.currentTarget)setResetOpen(false);}}><div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="startup-settings-reset-title"><div className="modal-header"><span className="modal-title" id="startup-settings-reset-title">Reset startup settings?</span><button type="button" className="icon-btn" onClick={()=>setResetOpen(false)} aria-label="Close reset confirmation"><Icon name="X" size={16} /></button></div><div className="modal-body"><p className="settings-reset-copy">Restore organization details and preferences to their current demo defaults for this session?</p></div><div className="modal-footer"><button type="button" className="btn-secondary" onClick={()=>setResetOpen(false)}>Keep Settings</button><button type="button" className="settings-reset-confirm" onClick={confirmReset}><Icon name="RotateCcw" size={14} /> Reset Settings</button></div></div></div>}
+      <p className="startup-session-footnote">Preferences apply to the current prototype session. Nothing is sent to a server.</p>
+      {resetOpen&&<div className="modal-overlay settings-modal" onClick={event=>{if(event.target===event.currentTarget)setResetOpen(false);}}><div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="startup-settings-reset-title"><div className="modal-header"><span className="modal-title" id="startup-settings-reset-title">Reset startup settings?</span><button type="button" className="icon-btn" onClick={()=>setResetOpen(false)} aria-label="Close reset confirmation"><Icon name="X" size={16} /></button></div><div className="modal-body"><p className="settings-reset-copy">Restore organization details and preferences to their current prototype defaults?</p></div><div className="modal-footer"><button type="button" className="btn-secondary" onClick={()=>setResetOpen(false)}>Keep Settings</button><button type="button" className="settings-reset-confirm" onClick={confirmReset}><Icon name="RotateCcw" size={14} /> Reset Settings</button></div></div></div>}
     </div>
   );
 }
