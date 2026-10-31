@@ -3273,7 +3273,7 @@ function ChallengeDetailsModal({ challenge, onClose, onEdit }) {
   );
 }
 
-function MyChallengesPage({ challenges, setChallenges, initialSearch = '' }) {
+function MyChallengesPage({ challenges, setChallenges, initialSearch = '', loading = false, error = '' }) {
   const [query, setQuery] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -3295,13 +3295,52 @@ function MyChallengesPage({ challenges, setChallenges, initialSearch = '' }) {
     { label:'Completed', value:challenges.filter(challenge => challenge.status === 'Completed').length, icon:'CheckCircle', bg:'#F3EEFF', color:'#6d28d9' },
   ];
 
-  function saveChallenge(challenge) {
-    if (dialog.mode === 'create') {
-      setChallenges(previous => [{ ...challenge, id:Date.now(), applications:0 }, ...previous]);
-      setNotice('Challenge created in this demo session.');
-    } else {
-      setChallenges(previous => previous.map(item => item.id === challenge.id ? challenge : item));
-      setNotice('Challenge changes saved in this demo session.');
+  async function saveChallenge(challenge) {
+    try {
+      if (dialog.mode === 'create') {
+        const created = await CivicBridgeApi.challenges.create({
+          title: challenge.title,
+          dept: 'Municipal Corporation',
+          category: challenge.category,
+          deadline: challenge.deadline,
+          description: challenge.description,
+          status: challenge.status || 'Active',
+          tags: []
+        });
+
+        setChallenges(previous => [{
+          ...challenge,
+          id: created.id,
+          applications: created.applications || 0,
+          status: created.status || challenge.status || 'Active',
+        }, ...previous]);
+        setNotice('Challenge created and saved to the backend.');
+      } else {
+        const updated = await CivicBridgeApi.challenges.update(challenge.id, {
+          title: challenge.title,
+          dept: 'Municipal Corporation',
+          category: challenge.category,
+          deadline: challenge.deadline,
+          description: challenge.description,
+          status: challenge.status || 'Active',
+          tags: []
+        });
+
+        setChallenges(previous => previous.map(item => item.id === challenge.id ? {
+          ...item,
+          ...challenge,
+          id: updated.id || challenge.id,
+          status: updated.status || challenge.status || 'Active',
+          title: updated.title || challenge.title,
+          category: updated.category || challenge.category,
+          deadline: updated.deadline || challenge.deadline,
+          description: updated.description || challenge.description,
+          applications: updated.applications || item.applications || 0,
+        } : item));
+        setNotice('Challenge changes saved to the backend.');
+      }
+    } catch (error) {
+      setNotice(error.message || 'Unable to save the challenge right now.');
     }
     setDialog(null);
   }
@@ -3355,7 +3394,19 @@ function MyChallengesPage({ challenges, setChallenges, initialSearch = '' }) {
           </div>
         </div>
 
-        {filtered.length ? (
+        {error && (
+          <div className="mc-notice" role="alert" style={{ background:'#FEF2F2', color:'#991B1B', border:'1px solid #FECACA' }}>
+            <Icon name="AlertCircle" size={16} color="#991B1B" /> {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="mc-empty-state">
+            <div className="mc-empty-icon"><Icon name="LoaderCircle" size={22} color="#173C70" /></div>
+            <h2>Loading challenges…</h2>
+            <p>Please wait while we fetch the latest challenge data.</p>
+          </div>
+        ) : filtered.length ? (
           <div className="table-wrap mc-table-wrap">
             <table className="mc-table">
               <thead><tr>{['Challenge','Category','Status','Applications','Deadline','Actions'].map(label => <th key={label}>{label}</th>)}</tr></thead>
@@ -4383,7 +4434,7 @@ function PostChallengePage({ onCreate, onCancel, onViewChallenges }) {
 
   const update = key => event => setForm(previous => ({ ...previous, [key]:event.target.value }));
 
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault();
     setAttempted(true);
     if (Object.values(errors).some(Boolean)) return;
@@ -4398,8 +4449,12 @@ function PostChallengePage({ onCreate, onCancel, onViewChallenges }) {
       expectedOutcomes:form.expectedOutcomes.trim(),
       applications:0,
     };
-    onCreate(challenge);
-    setCreated(challenge);
+    try {
+      await onCreate(challenge);
+      setCreated(challenge);
+    } catch (error) {
+      window.alert(error.message || 'Unable to create the challenge right now.');
+    }
   }
 
   if (created) {
@@ -4408,7 +4463,7 @@ function PostChallengePage({ onCreate, onCancel, onViewChallenges }) {
         <section className="card post-challenge-success" aria-live="polite">
           <div className="post-success-icon"><Icon name="Check" size={24} color="#0F9D8A" /></div>
           <h1>Challenge posted</h1>
-          <p><strong>{created.title}</strong> is now in your demo challenge list. No data was sent to a server.</p>
+          <p><strong>{created.title}</strong> is now in your challenge list and has been sent to the backend API.</p>
           <div className="post-success-actions">
             <button className="btn-primary" onClick={onViewChallenges}><Icon name="List" size={15} color="#fff" /> View My Challenges</button>
             <button className="btn-secondary" onClick={onCancel}>Back to Dashboard</button>
@@ -4547,7 +4602,9 @@ const GOV_PAGE_TITLES = {
 function GovDashboard({ setPage }) {
   const [activeNav, setActiveNav]               = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [govChallenges, setGovChallenges]       = useState(INITIAL_GOV_CHALLENGES);
+  const [govChallenges, setGovChallenges]       = useState([]);
+  const [govChallengesLoading, setGovChallengesLoading] = useState(true);
+  const [govChallengesError, setGovChallengesError] = useState('');
   const [govMatches, setGovMatches]             = useState(INITIAL_GOV_MATCHES);
   const [govProposals, setGovProposals]         = useState(INITIAL_GOV_PROPOSALS);
   const [govEvaluations, setGovEvaluations]     = useState(INITIAL_GOV_EVALUATIONS);
@@ -4555,6 +4612,68 @@ function GovDashboard({ setPage }) {
   const [govSettings, setGovSettings]           = useState(() => ({ ...INITIAL_GOV_SETTINGS, notifications:{ ...INITIAL_GOV_SETTINGS.notifications } }));
   const [displayDensity, setDisplayDensity]     = useState(INITIAL_GOV_SETTINGS.density);
   const [challengeSearchSeed, setChallengeSearchSeed] = useState('');
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadChallenges() {
+      try {
+        setGovChallengesLoading(true);
+        setGovChallengesError('');
+        const data = await CivicBridgeApi.challenges.list();
+        if (ignore) return;
+
+        const normalized = Array.isArray(data) ? data.map(item => ({
+          id: item.id,
+          title: item.title,
+          category: item.category,
+          status: item.status || 'Active',
+          applications: item.applications || 0,
+          deadline: item.deadline || '',
+          description: item.description || item.desc || '',
+        })) : INITIAL_GOV_CHALLENGES;
+
+        setGovChallenges(normalized);
+      } catch (error) {
+        if (ignore) return;
+        setGovChallengesError(error.message || 'Unable to load challenges right now.');
+        setGovChallenges(INITIAL_GOV_CHALLENGES);
+      } finally {
+        if (!ignore) {
+          setGovChallengesLoading(false);
+        }
+      }
+    }
+
+    loadChallenges();
+    return () => { ignore = true; };
+  }, []);
+
+  async function createGovChallenge(challenge) {
+    const payload = {
+      title: challenge.title,
+      dept: challenge.department || 'Municipal Corporation',
+      category: challenge.category,
+      deadline: challenge.deadline,
+      description: challenge.description,
+      status: challenge.status || 'Active',
+      tags: challenge.requiredTechnologies || []
+    };
+
+    const created = await CivicBridgeApi.challenges.create(payload);
+    const normalized = {
+      id: created.id,
+      title: created.title || challenge.title,
+      category: created.category || challenge.category,
+      status: created.status || challenge.status || 'Active',
+      applications: created.applications || 0,
+      deadline: created.deadline || challenge.deadline || '',
+      description: created.description || challenge.description || '',
+    };
+
+    setGovChallenges(previous => [normalized, ...previous]);
+    return normalized;
+  }
 
   function saveGovSettings(settings) {
     setGovSettings(settings);
@@ -4580,7 +4699,7 @@ function GovDashboard({ setPage }) {
         {activeNav === 'dashboard'
           ? <DashboardPage />
           : activeNav === 'challenges'
-            ? <MyChallengesPage challenges={govChallenges} setChallenges={setGovChallenges} initialSearch={challengeSearchSeed} />
+            ? <MyChallengesPage challenges={govChallenges} setChallenges={setGovChallenges} initialSearch={challengeSearchSeed} loading={govChallengesLoading} error={govChallengesError} />
             : activeNav === 'matches'
               ? <StartupMatchesPage matches={govMatches} setMatches={setGovMatches} challenges={govChallenges} onOpenChallenge={openRelatedChallenge} />
               : activeNav === 'proposals'
@@ -4595,7 +4714,7 @@ function GovDashboard({ setPage }) {
                 ? <SettingsPage settings={govSettings} onSave={saveGovSettings} onReset={saveGovSettings} onDensityChange={changeDisplayDensity} />
             : activeNav === 'post'
               ? <PostChallengePage
-                  onCreate={challenge => setGovChallenges(previous => [{ ...challenge, id:Date.now() }, ...previous])}
+                  onCreate={createGovChallenge}
                   onCancel={() => setActiveNav('dashboard')}
                   onViewChallenges={() => setActiveNav('challenges')}
                 />
