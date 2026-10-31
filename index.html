@@ -3876,10 +3876,26 @@ function ProposalsPage({ proposals, setProposals, challenges, onOpenChallenge, l
     { label:'Rejected', value:proposals.filter(proposal => proposal.status === 'Rejected').length, icon:'XCircle', bg:'#FEE4E2', color:'#b42318' },
   ];
 
-  function saveReview(proposal, review) {
-    setProposals(previous => previous.map(item => item.id === proposal.id ? { ...item, ...review } : item));
-    setNotice(`${proposal.title} marked ${review.status.toLowerCase()}.`);
-    setDialog(null);
+  async function saveReview(proposal, review) {
+    try {
+      const payload = {
+        title: proposal.title,
+        summary: proposal.description || proposal.solution || proposal.title,
+        status: review.status,
+        budget: Number(proposal.estimatedBudget || 0),
+        technologies: Array.isArray(proposal.technologies) ? proposal.technologies : [],
+      };
+
+      const updated = await CivicBridgeApi.proposals.update(proposal.id, payload);
+      const nextProposal = normalizeProposalRecord({ ...proposal, ...updated, reviewNote: review.reviewNote || proposal.reviewNote || '' });
+
+      setProposals(previous => previous.map(item => item.id === proposal.id ? nextProposal : item));
+      setNotice(`${proposal.title} marked ${review.status.toLowerCase()}.`);
+    } catch (error) {
+      setNotice(`Failed to update ${proposal.title}: ${error.message}`);
+    } finally {
+      setDialog(null);
+    }
   }
 
   function resetFilters() {
