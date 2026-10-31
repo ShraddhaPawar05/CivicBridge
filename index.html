@@ -4325,7 +4325,7 @@ function PerformanceDetailsModal({ challenge, proposals, evaluations, pilots, st
           <section className="perf-detail-section"><h3>Challenge brief</h3><p>{challenge.description}</p></section>
           <section className="perf-detail-section"><h3>Pilot progress</h3>{challengePilots.length ? challengePilots.map(pilot => <div className="perf-pilot-detail" key={pilot.id}><div><strong>{pilot.name}</strong><span>{pilot.status} · {pilot.progress}%</span></div><div className="perf-bar-track"><span style={{ width:`${pilot.progress}%` }} /></div><div className="perf-pilot-dates">{formatProposalDate(pilot.startDate)} – {formatProposalDate(pilot.endDate)}</div>{pilot.milestones.map(milestone => <div className="perf-milestone-row" key={milestone.id}><span>{milestone.title}</span><span className={`badge ${pilotStatusBadge(milestone.status)}`}>{milestone.status}</span></div>)}</div>) : <p>No pilots are linked to this challenge yet.</p>}</section>
           <section className="perf-detail-section"><h3>Proposed outcomes <span>(unverified)</span></h3>{challengeProposals.length ? challengeProposals.map(proposal => <div className="perf-outcome" key={proposal.id}><strong>{startups.find(startup => startup.id === proposal.startupId)?.name || 'Startup proposal'}</strong><p>{proposal.expectedOutcomes}</p></div>) : <p>No proposal outcomes have been submitted.</p>}</section>
-          <p className="perf-demo-note">All figures are calculated from frontend mock records. Proposed outcomes are not measured results.</p>
+          <p className="perf-demo-note">All figures are calculated from the current prototype records. Proposed outcomes are not measured results.</p>
         </div>
         <div className="modal-footer"><button className="btn-secondary" onClick={onClose}>Close</button><button className="btn-primary" onClick={() => onOpenChallenge(challenge.id)}><Icon name="FileText" size={14} color="#fff" /> View Challenge</button></div>
       </div>
@@ -4398,7 +4398,7 @@ function PerformancePage({ challenges, matches, proposals, evaluations, pilots, 
   const monthlyActivity = [...activityMap.entries()].sort(([a],[b]) => a.localeCompare(b)).map(([month,activity]) => ({ month, label:new Date(`${month}-01T00:00:00`).toLocaleDateString('en-IN',{month:'short',year:'2-digit'}), ...activity }));
   const maxActivity = Math.max(1, ...monthlyActivity.map(item => item.proposals + item.pilots));
   const summaryCards = [
-    { label:'Total Challenges', value:challenges.length, icon:'Layers', bg:'#EBF2FF', color:'#173C70', note:'Current mock challenge records' },
+    { label:'Total Challenges', value:challenges.length, icon:'Layers', bg:'#EBF2FF', color:'#173C70', note:'Current challenge records' },
     { label:'Active Pilots', value:activePilots, icon:'Activity', bg:'#E6F7F5', color:'#0F9D8A', note:'In progress or delayed' },
     { label:'Completed Pilots', value:completedPilots, icon:'CheckCircle', bg:'#EBF2FF', color:'#173C70', note:'Status marked completed' },
     { label:'Overall Progress', value:`${overallProgress}%`, icon:'TrendingUp', bg:'#FFF4E5', color:'#b45309', note:'Average progress across pilots' },
@@ -4410,12 +4410,12 @@ function PerformancePage({ challenges, matches, proposals, evaluations, pilots, 
 
   return (
     <div className="page-content performance-page">
-      <div className="welcome-bar"><div><h1 className="mc-page-title">Performance</h1><p className="mc-page-subtitle">A live summary of challenge activity, proposals, evaluations, and pilot delivery in this demo.</p></div></div>
-      <p className="performance-demo-note"><Icon name="Info" size={14} color="#667085" /> Metrics are derived from current frontend mock records and are not verified real-world outcomes.</p>
+      <div className="welcome-bar"><div><h1 className="mc-page-title">Performance</h1><p className="mc-page-subtitle">A live summary of challenge activity, proposals, evaluations, and pilot delivery in the current prototype.</p></div></div>
+      <p className="performance-demo-note"><Icon name="Info" size={14} color="#667085" /> Metrics are derived from the current prototype record set and are not verified real-world outcomes.</p>
 
       <div className="summary-grid pf-summary-grid">{summaryCards.map(card => <div className="summary-card" key={card.label}><div className="summary-icon" style={{background:card.bg}}><Icon name={card.icon} size={20} color={card.color} /></div><div className="pf-summary-copy"><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div><div className="pf-summary-note">{card.note}</div></div></div>)}</div>
 
-      <section className="pf-metrics-section"><div className="pf-section-heading"><div><h2>Program metrics</h2><p>Each rate is calculated from the current mock records shown below.</p></div></div><div className="pf-metric-grid">{metrics.map(metric => <article className="card pf-metric-card" key={metric.label}><div className="pf-metric-heading"><strong>{metric.label}</strong><span>{metric.value}</span></div><div className="pf-metric-track" role="img" aria-label={`${metric.label}: ${metric.value}`}><span style={{width:`${metric.percent}%`}} /></div><p>{metric.formula}</p></article>)}</div></section>
+<section className="pf-metrics-section"><div className="pf-section-heading"><div><h2>Program metrics</h2><p>Each rate is calculated from the current prototype records shown below.</p></div></div><div className="pf-metric-grid">{metrics.map(metric => <article className="card pf-metric-card" key={metric.label}><div className="pf-metric-heading"><strong>{metric.label}</strong><span>{metric.value}</span></div><div className="pf-metric-track" role="img" aria-label={`${metric.label}: ${metric.value}`}><span style={{width:`${metric.percent}%`}} /></div><p>{metric.formula}</p></article>)}</div></section>
 
       <div className="pf-chart-grid">
         <section className="card pf-chart-card"><div className="pf-card-heading"><div><h2>Challenge status</h2><p>Current challenge records by status.</p></div></div><div className="pf-status-chart">{statusCounts.map(item => <div className="pf-status-item" key={item.status}><div className="pf-status-label"><span>{item.status}</span><strong>{item.count}</strong></div><div className="pf-chart-track"><span className={`pf-status-bar pf-status-${item.status.replace(' ','-').toLowerCase()}`} style={{width:`${challenges.length ? item.count / challenges.length * 100 : 0}%`}} /></div></div>)}</div></section>
