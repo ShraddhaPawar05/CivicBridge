@@ -4040,7 +4040,7 @@ function EvaluationEditorModal({ proposal, evaluation, challenge, onClose, onSav
         {confirming ? (
           <>
             <div className="modal-header"><span className="modal-title" id="ev-editor-title">Confirm final evaluation</span><button className="icon-btn" onClick={onClose} aria-label="Close confirmation"><Icon name="X" size={16} /></button></div>
-            <div className="modal-body"><p className="ev-confirm-text">Submit the evaluation for <strong>{proposal.title}</strong> with the recommendation <strong>{recommendation}</strong>?</p><p className="sm-demo-note">This finalizes the evaluation in this frontend demo session only.</p></div>
+            <div className="modal-body"><p className="ev-confirm-text">Submit the evaluation for <strong>{proposal.title}</strong> with the recommendation <strong>{recommendation}</strong>?</p><p className="sm-demo-note">This finalizes the evaluation for the current proposal review flow.</p></div>
             <div className="modal-footer"><button className="btn-secondary" onClick={() => setConfirming(false)}>Back to Evaluation</button><button className="btn-primary" onClick={confirmSubmission}><Icon name="Check" size={14} color="#fff" /> Confirm Submission</button></div>
           </>
         ) : (
@@ -4054,7 +4054,7 @@ function EvaluationEditorModal({ proposal, evaluation, challenge, onClose, onSav
               <div className="form-group"><label className="form-label" htmlFor="ev-recommendation">Final recommendation</label><select id="ev-recommendation" className={`form-select${errors.recommendation ? ' mc-input-error' : ''}`} value={recommendation} onChange={event => { setRecommendation(event.target.value); setErrors(previous => ({ ...previous, recommendation:'' })); }}><option value="">Select recommendation</option>{['Accept','Request Revisions','Reject'].map(option => <option key={option} value={option}>{option}</option>)}</select>{errors.recommendation && <div className="mc-field-error" role="alert">{errors.recommendation}</div>}</div>
               <label className="ev-flag-option"><input type="checkbox" checked={flagged} onChange={event => setFlagged(event.target.checked)} /><span>Flag for additional review</span></label>
               {errors.draft && <div className="mc-field-error" role="alert">{errors.draft}</div>}
-              <p className="sm-demo-note">Scores and comments are held in the current frontend session only.</p>
+              <p className="sm-demo-note">Scores and comments are stored in the active prototype state while this review is in progress.</p>
             </div>
             <div className="modal-footer ev-editor-footer"><button type="button" className="btn-secondary" onClick={saveDraft}>Save Draft</button><button type="submit" className="btn-primary"><Icon name="Send" size={14} color="#fff" /> Submit Evaluation</button></div>
           </form>
@@ -4210,7 +4210,7 @@ function PilotEditorModal({ pilot, onClose, onSave }) {
         {confirming ? (
           <>
             <div className="modal-header"><span className="modal-title" id="pt-editor-title">Confirm pilot completion</span><button className="icon-btn" onClick={onClose} aria-label="Close completion confirmation"><Icon name="X" size={16} /></button></div>
-            <div className="modal-body"><p className="pt-confirm-text">Mark <strong>{pilot.name}</strong> as completed? This will update the pilot status in the current demo session.</p></div>
+            <div className="modal-body"><p className="pt-confirm-text">Mark <strong>{pilot.name}</strong> as completed? This updates the pilot status in the active progress record.</p></div>
             <div className="modal-footer"><button className="btn-secondary" onClick={() => setConfirming(false)}>Back to Update</button><button className="btn-primary" onClick={() => onSave(pilot.id, updates(), true)}><Icon name="Check" size={14} color="#fff" /> Confirm Completion</button></div>
           </>
         ) : (
@@ -4224,7 +4224,7 @@ function PilotEditorModal({ pilot, onClose, onSave }) {
               {errors.completion && <div className="mc-field-error pt-completion-error" role="alert">{errors.completion}</div>}
               <div className="pt-editor-section"><h3>Milestones</h3>{milestones.map(milestone => <div className="pt-edit-milestone" key={milestone.id}><div><strong>{milestone.title}</strong><span>Due {formatProposalDate(milestone.dueDate)}</span></div><select className="form-select" aria-label={`Milestone status: ${milestone.title}`} value={milestone.status} onChange={event => setMilestones(previous => previous.map(item => item.id === milestone.id ? { ...item, status:event.target.value } : item))}><option>Planned</option><option>In Progress</option><option>Completed</option><option>Delayed</option></select></div>)}</div>
               <div className="form-group pt-notes-group"><label className="form-label" htmlFor="pt-notes">Pilot notes</label><textarea id="pt-notes" className={`form-textarea${errors.notes ? ' mc-input-error' : ''}`} maxLength={600} value={notes} onChange={event => { setNotes(event.target.value); setErrors(previous => ({ ...previous, notes:'' })); }} placeholder="Add a progress update or note for the department…" />{errors.notes && <span className="mc-field-error" role="alert">{errors.notes}</span>}<span className="pt-notes-count">{notes.length}/600</span></div>
-              <p className="sm-demo-note">Updates remain in the current frontend session only.</p>
+              <p className="sm-demo-note">Pilot updates are stored in the active prototype record while this review is active.</p>
             </div>
             <div className="modal-footer"><button type="button" className="btn-secondary" onClick={onClose}>Cancel</button><button type="submit" className="btn-primary"><Icon name="Save" size={14} color="#fff" /> Save Updates</button></div>
           </form>
