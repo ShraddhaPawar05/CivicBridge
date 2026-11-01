@@ -29,12 +29,11 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-// == DEMO AUTH UTILITIES =====================================================
-// IMPORTANT: This is a browser-only college prototype.
-// Client-side password hashing does NOT provide production security.
-// No account data is sent to any server. Do not enter real passwords,
-// government IDs (Aadhaar, PAN), or any sensitive personal information.
-// Clearing browser data will remove all demo accounts.
+// == CLIENT-SIDE AUTH UTILITIES ==============================================
+// CivicBridge keeps the current prototype flow in the browser for local UI testing.
+// Client-side password hashing is used only for the demo experience and is not
+// intended as a production security model. Do not enter sensitive personal data.
+// Clearing browser storage will remove the local mock accounts for this session.
 // ============================================================================
 
 const STORAGE_KEY  = 'civicbridge_demo_accounts'; // localStorage key
@@ -1311,7 +1310,7 @@ function StartupsPage({ setPage }) {
 
               <div className="stup-modal-demo-note">
                 <Icon name="Info" size={13} color="#b45309" />
-                Profile details shown here are part of the active dashboard record.
+                Profile details shown here are part of the active account record.
               </div>
             </div>
 
@@ -2020,7 +2019,7 @@ function StartupChallengeDetailsModal({ challenge, match, linkedChallenge, isSav
           <div className="discovery-detail-meta"><span>Application deadline</span><strong>{challenge.deadline}</strong></div>
           {linkedChallenge&&<div className="discovery-detail-meta"><span>Applications recorded</span><strong>{linkedChallenge.applications}</strong></div>}
           {match&&<div className="discovery-match-note"><div><strong>{match.matchScore}% technology match</strong><span>From the current match record.</span></div><p>{match.rationale}</p></div>}
-          <p className="discovery-demo-note">Challenge details and status are part of the current dashboard record.</p>
+          <p className="discovery-demo-note">Challenge details and status are part of the active workflow record.</p>
         </div>
         <div className="modal-footer discovery-detail-footer"><button className={`btn-secondary${isSaved?' discovery-saved':''}`} onClick={()=>onToggleSave(challenge)}><Icon name={isSaved?'BookmarkCheck':'BookmarkPlus'} size={14} />{isSaved?'Saved':'Save Challenge'}</button><button className="btn-primary" onClick={()=>onPrepare(challenge)}><Icon name="FileText" size={14} color="#fff" /> Prepare Proposal</button></div>
       </div>
@@ -2062,12 +2061,12 @@ function StartupProposalPreparationModal({ challenge, onClose, onSubmit, onViewP
   return (
     <div className="modal-overlay discovery-modal startup-challenge-modal" onClick={event=>{if(event.target===event.currentTarget)onClose();}}>
       <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="startup-proposal-title">
-        {submitted?<><div className="modal-header"><span className="modal-title" id="startup-proposal-title">Proposal prepared</span><button className="icon-btn" onClick={onClose} aria-label="Close proposal confirmation"><Icon name="X" size={16} /></button></div><div className="modal-body"><div className="proposal-success"><div className="proposal-success-icon"><Icon name="Check" size={22} color="#0F9D8A" /></div><h2>{form.title}</h2><p>Your proposal was added to My Proposals in the current dashboard.</p></div></div><div className="modal-footer"><button className="btn-secondary" onClick={onClose}>Close</button><button className="btn-primary" onClick={onViewProposals}><Icon name="FileText" size={14} color="#fff" /> View My Proposals</button></div></>:<form onSubmit={submit} noValidate><div className="modal-header"><div><span className="modal-title" id="startup-proposal-title">Prepare Proposal</span><span className="proposal-modal-subtitle">{challenge.title}</span></div><button type="button" className="icon-btn" onClick={onClose} aria-label="Close proposal form"><Icon name="X" size={16} /></button></div><div className="modal-body">
+        {submitted?<><div className="modal-header"><span className="modal-title" id="startup-proposal-title">Proposal prepared</span><button className="icon-btn" onClick={onClose} aria-label="Close proposal confirmation"><Icon name="X" size={16} /></button></div><div className="modal-body"><div className="proposal-success"><div className="proposal-success-icon"><Icon name="Check" size={22} color="#0F9D8A" /></div><h2>{form.title}</h2><p>Your proposal was added to My Proposals in the active workflow.</p></div></div><div className="modal-footer"><button className="btn-secondary" onClick={onClose}>Close</button><button className="btn-primary" onClick={onViewProposals}><Icon name="FileText" size={14} color="#fff" /> View My Proposals</button></div></>:<form onSubmit={submit} noValidate><div className="modal-header"><div><span className="modal-title" id="startup-proposal-title">Prepare Proposal</span><span className="proposal-modal-subtitle">{challenge.title}</span></div><button type="button" className="icon-btn" onClick={onClose} aria-label="Close proposal form"><Icon name="X" size={16} /></button></div><div className="modal-body">
           <div className="form-group"><label className="form-label" htmlFor="startup-proposal-title-input">Proposal title</label><input id="startup-proposal-title-input" className={`form-input${errors.title?' mc-input-error':''}`} value={form.title} onChange={update('title')} maxLength={100} />{errors.title&&<span className="mc-field-error" role="alert">{errors.title}</span>}</div>
           <div className="form-group"><label className="form-label" htmlFor="startup-proposal-solution">Proposed solution</label><textarea id="startup-proposal-solution" className={`form-textarea proposal-solution-input${errors.solution?' mc-input-error':''}`} value={form.solution} onChange={update('solution')} maxLength={1000} placeholder="Describe your proposed approach and how it addresses the challenge…" />{errors.solution&&<span className="mc-field-error" role="alert">{errors.solution}</span>}</div>
           <div className="form-group"><label className="form-label" htmlFor="startup-proposal-technologies">Technologies</label><input id="startup-proposal-technologies" className={`form-input${errors.technologies?' mc-input-error':''}`} value={form.technologies} onChange={update('technologies')} placeholder="Separate technologies with commas" />{errors.technologies&&<span className="mc-field-error" role="alert">{errors.technologies}</span>}</div>
           <div className="proposal-form-grid"><div className="form-group"><label className="form-label" htmlFor="startup-proposal-budget">Estimated budget</label><input id="startup-proposal-budget" type="number" min="1" step="1000" className={`form-input${errors.budget?' mc-input-error':''}`} value={form.budget} onChange={update('budget')} placeholder="Amount in INR" />{errors.budget&&<span className="mc-field-error" role="alert">{errors.budget}</span>}</div><div className="form-group"><label className="form-label" htmlFor="startup-proposal-outcomes">Expected outcomes</label><textarea id="startup-proposal-outcomes" className={`form-textarea${errors.expectedOutcomes?' mc-input-error':''}`} value={form.expectedOutcomes} onChange={update('expectedOutcomes')} maxLength={500} placeholder="Describe measurable outcomes…" />{errors.expectedOutcomes&&<span className="mc-field-error" role="alert">{errors.expectedOutcomes}</span>}</div></div>
-          <p className="discovery-demo-note">Proposal details are saved in the current dashboard record.</p>
+          <p className="discovery-demo-note">Proposal details are saved in the active workflow record.</p>
         </div><div className="modal-footer"><button type="button" className="btn-secondary" onClick={onClose}>Cancel</button><button type="submit" className="btn-primary"><Icon name="Send" size={14} color="#fff" /> Submit Proposal</button></div></form>}
       </div>
     </div>
@@ -2111,7 +2110,7 @@ function StartupChallengesPage({ startup, challenges, matches, savedChallengeIds
   return (
     <div className="page-content fade-in startup-challenges-page">
       <div className="welcome-bar"><div><h1 className="mc-page-title">Browse Challenges</h1><p className="mc-page-subtitle">Explore government opportunities that share your technology capabilities.</p></div><button className="btn-secondary" onClick={onBack}><Icon name="ArrowLeft" size={14} /> Overview</button></div>
-      {notice&&<div className="mc-notice" role="status"><Icon name="BookmarkCheck" size={15} color="#0F9D8A" />{notice}<span className="startup-demo-only">Saved in the current dashboard.</span></div>}
+      {notice&&<div className="mc-notice" role="status"><Icon name="BookmarkCheck" size={15} color="#0F9D8A" />{notice}<span className="startup-demo-only">Saved to your current session.</span></div>}
       <div className="startup-challenge-toolbar"><div className="search-wrap startup-challenge-search"><span className="search-icon"><Icon name="Search" size={14} color="#667085" /></span><input aria-label="Search challenges" placeholder="Search title, department, or technology…" value={query} onChange={event=>setQuery(event.target.value)} /></div><select className="form-select startup-challenge-filter" aria-label="Filter challenges by category" value={categoryFilter} onChange={event=>setCategoryFilter(event.target.value)}><option value="All">All categories</option>{categories.map(category=><option key={category}>{category}</option>)}</select><select className="form-select startup-challenge-filter" aria-label="Filter challenges by department" value={departmentFilter} onChange={event=>setDepartmentFilter(event.target.value)}><option value="All">All departments</option>{departments.map(department=><option key={department}>{department}</option>)}</select><select className="form-select startup-challenge-filter" aria-label="Filter challenges by status" value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}><option value="All">All statuses</option>{statuses.map(status=><option key={status}>{status}</option>)}</select></div>
       <div className="startup-results-count">{filtered.length} of {challenges.length} challenges</div>
       <div className="card startup-browse-card"><div className="table-wrap"><table className="startup-challenge-table"><thead><tr>{['Challenge','Category','Department','Status','Deadline','Technology fit','Actions'].map(label=><th key={label}>{label}</th>)}</tr></thead><tbody>{filtered.map(challenge=><tr key={challenge.id}><td className="startup-challenge-title">{challenge.title}<span>{challenge.desc}</span></td><td>{challenge.category}</td><td>{challenge.dept}</td><td><span className={`badge ${challenge.badge}`}>{challenge.stage}</span></td><td>{challenge.deadline}</td><td>{challenge.match?<span className="badge badge-teal">{challenge.match.matchScore}% match</span>:challenge.sharedTags.length?`${challenge.sharedTags.length} shared`:'Related domain'}</td><td className="startup-challenge-actions"><button className="btn-secondary" onClick={()=>setSelectedChallenge(challenge)}><Icon name="Eye" size={14} /> Details</button><button className={`btn-secondary${savedChallengeIds.includes(challenge.id)?' startup-saved-button':''}`} aria-pressed={savedChallengeIds.includes(challenge.id)} onClick={()=>toggleSaved(challenge)}><Icon name={savedChallengeIds.includes(challenge.id)?'BookmarkCheck':'BookmarkPlus'} size={14} />{savedChallengeIds.includes(challenge.id)?'Saved':'Save'}</button><button className="btn-primary" onClick={()=>setProposalChallenge(challenge)}><Icon name="FileText" size={14} color="#fff" /> Prepare Proposal</button></td></tr>)}</tbody></table>{!filtered.length&&<div className="mc-empty-state"><div className="mc-empty-icon"><Icon name="SearchX" size={22} color="#173C70" /></div><h2>No challenges found</h2><p>Try another title, category, department, or status filter.</p><button className="btn-secondary" onClick={clearFilters}>Clear filters</button></div>}</div></div>
@@ -2428,7 +2427,7 @@ function StartupCompanyProfilePage({ profile, proposalCount, pilotCount, onBack,
               <div className="startup-profile-actions"><button type="button" className="btn-secondary" onClick={()=>{setForm({...profile});setErrors({});setEditing(false);}}>Cancel</button><button type="submit" className="btn-primary"><Icon name="Save" size={14} color="#fff" /> Save Profile</button></div>
             </form>}
       </section>
-      <p className="startup-session-footnote">Profile information and counts reflect the current dashboard record.</p>
+      <p className="startup-session-footnote">Profile information and counts reflect the active session data.</p>
     </div>
   );
 }
@@ -2484,7 +2483,7 @@ function StartupSettingsPage({ profile, defaults, preferences, onBack, onSave, o
         <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon"><Icon name="SlidersHorizontal" size={17} color="#173C70" /></div><div><h2>Display preferences</h2><p>Choose spacing for supported dashboard lists and cards.</p></div></div><fieldset className="settings-density"><legend>Content density</legend><div className="settings-segment" role="radiogroup" aria-label="Startup content density">{[['comfortable','Comfortable'],['compact','Compact']].map(([value,label])=><button type="button" role="radio" aria-checked={density===value} className={density===value?'is-selected':''} key={value} onClick={()=>{setDensity(value);onDensityChange(value);setNotice('');}}>{label}</button>)}</div></fieldset></section>
         <div className="settings-footer"><button type="button" className="btn-secondary" onClick={()=>setResetOpen(true)}><Icon name="RotateCcw" size={14} /> Reset to Defaults</button><button type="submit" className="btn-primary"><Icon name="Save" size={14} color="#fff" /> Save Settings</button></div>
       </form>
-      <p className="startup-session-footnote">Preferences apply to the current dashboard session.</p>
+      <p className="startup-session-footnote">Preferences apply to the current session.</p>
       {resetOpen&&<div className="modal-overlay settings-modal" onClick={event=>{if(event.target===event.currentTarget)setResetOpen(false);}}><div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="startup-settings-reset-title"><div className="modal-header"><span className="modal-title" id="startup-settings-reset-title">Reset startup settings?</span><button type="button" className="icon-btn" onClick={()=>setResetOpen(false)} aria-label="Close reset confirmation"><Icon name="X" size={16} /></button></div><div className="modal-body"><p className="settings-reset-copy">Restore organization details and preferences to the default dashboard values?</p></div><div className="modal-footer"><button type="button" className="btn-secondary" onClick={()=>setResetOpen(false)}>Keep Settings</button><button type="button" className="settings-reset-confirm" onClick={confirmReset}><Icon name="RotateCcw" size={14} /> Reset Settings</button></div></div></div>}
     </div>
   );
@@ -2685,7 +2684,7 @@ function EvaluatorSettingsPage({ settings, defaults, onSave, onReset, onDensityC
         <section className="card settings-section"><div className="settings-section-heading"><div className="settings-section-icon"><Icon name="SlidersHorizontal" size={17} color="#173C70" /></div><div><h2>Display preferences</h2><p>Choose spacing for supported dashboard lists.</p></div></div><fieldset className="settings-density"><legend>Content density</legend><div className="settings-segment" role="radiogroup" aria-label="Evaluator content density">{[['comfortable','Comfortable'],['compact','Compact']].map(([value,label])=><button type="button" role="radio" aria-checked={density===value} className={density===value?'is-selected':''} key={value} onClick={()=>{setDensity(value);onDensityChange(value);setNotice('');}}>{label}</button>)}</div></fieldset></section>
         <div className="settings-footer"><button type="button" className="btn-secondary" onClick={()=>setResetOpen(true)}><Icon name="RotateCcw" size={14} /> Reset to Defaults</button><button type="submit" className="btn-primary"><Icon name="Save" size={14} color="#fff" /> Save Settings</button></div>
       </form>
-      <p className="startup-session-footnote">These settings apply to the current dashboard session.</p>
+      <p className="startup-session-footnote">These settings apply to the current session.</p>
       {resetOpen&&<div className="modal-overlay settings-modal" onClick={event=>{if(event.target===event.currentTarget)setResetOpen(false);}}><div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="evaluator-settings-reset-title"><div className="modal-header"><span className="modal-title" id="evaluator-settings-reset-title">Reset evaluator settings?</span><button type="button" className="icon-btn" onClick={()=>setResetOpen(false)} aria-label="Close reset confirmation"><Icon name="X" size={16} /></button></div><div className="modal-body"><p className="settings-reset-copy">Restore your evaluator profile and preferences to the default dashboard values?</p></div><div className="modal-footer"><button type="button" className="btn-secondary" onClick={()=>setResetOpen(false)}>Keep Settings</button><button type="button" className="settings-reset-confirm" onClick={confirmReset}><Icon name="RotateCcw" size={14} /> Reset Settings</button></div></div></div>}
     </div>
   );
@@ -3615,7 +3614,7 @@ function StartupMatchReviewModal({ match, onClose, onSave }) {
               <textarea id="sm-review-note" className={`form-textarea${error ? ' mc-input-error' : ''}`} value={note} maxLength={500} onChange={event => { setNote(event.target.value); setError(''); }} placeholder="Add a concise reason for this review outcome…" aria-invalid={!!error} />
               {error && <div className="mc-field-error" role="alert">{error}</div>}
             </div>
-            <p className="sm-demo-note">This review updates the current dashboard workflow for this startup.</p>
+            <p className="sm-demo-note">This review updates the startup assessment flow.</p>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
@@ -3750,7 +3749,7 @@ function StartupMatchesPage({ matches, setMatches, challenges, onOpenChallenge, 
 
       {dialog?.type === 'details' && <StartupMatchDetailsModal match={dialog.match} challenge={challengeById(dialog.match.challengeId)} onClose={() => setDialog(null)} onReview={match => setDialog({ type:'review', match })} onShortlist={toggleShortlist} onOpenChallenge={id => { setDialog(null); onOpenChallenge(id); }} />}
       {dialog?.type === 'review' && <StartupMatchReviewModal match={dialog.match} onClose={() => setDialog(null)} onSave={saveReview} />}
-      {dialog?.type === 'remove' && <div className="modal-overlay sm-modal" onClick={event => { if (event.target === event.currentTarget) setDialog(null); }}><div className="modal-box sm-confirm-box" role="dialog" aria-modal="true" aria-labelledby="sm-remove-heading"><div className="modal-header"><span className="modal-title" id="sm-remove-heading">Remove startup match?</span><button className="icon-btn" onClick={() => setDialog(null)} aria-label="Close confirmation"><Icon name="X" size={16} /></button></div><div className="modal-body"><p className="sm-remove-copy">Remove <strong>{dialog.match.name}</strong> from the current match list? This action updates the dashboard view for this session.</p><p className="sm-demo-note">This only updates the current list in this dashboard.</p></div><div className="modal-footer"><button className="btn-secondary" onClick={() => setDialog(null)}>Keep Match</button><button className="sm-confirm-remove" onClick={() => removeMatch(dialog.match)}><Icon name="Trash2" size={14} /> Remove Match</button></div></div></div>}
+      {dialog?.type === 'remove' && <div className="modal-overlay sm-modal" onClick={event => { if (event.target === event.currentTarget) setDialog(null); }}><div className="modal-box sm-confirm-box" role="dialog" aria-modal="true" aria-labelledby="sm-remove-heading"><div className="modal-header"><span className="modal-title" id="sm-remove-heading">Remove startup match?</span><button className="icon-btn" onClick={() => setDialog(null)} aria-label="Close confirmation"><Icon name="X" size={16} /></button></div><div className="modal-body"><p className="sm-remove-copy">Remove <strong>{dialog.match.name}</strong> from the active match list? This action updates the current session view.</p><p className="sm-demo-note">This updates the active match list for this session.</p></div><div className="modal-footer"><button className="btn-secondary" onClick={() => setDialog(null)}>Keep Match</button><button className="sm-confirm-remove" onClick={() => removeMatch(dialog.match)}><Icon name="Trash2" size={14} /> Remove Match</button></div></div></div>}
     </div>
   );
 }
@@ -3835,7 +3834,7 @@ function ProposalReviewModal({ proposal, onClose, onSave }) {
         {confirming ? (
           <>
             <div className="modal-header"><span className="modal-title" id="pr-review-title">Confirm proposal decision</span><button className="icon-btn" onClick={onClose} aria-label="Close review confirmation"><Icon name="X" size={16} /></button></div>
-            <div className="modal-body"><p className="pr-confirm-copy">Mark <strong>{proposal.title}</strong> as <span className={`badge ${proposalStatusBadge(decision)}`}>{decision}</span>?</p>{note.trim() && <p className="pr-confirm-note">Review note: {note.trim()}</p>}<p className="sm-demo-note">This updates the proposal status in the current dashboard record.</p></div>
+            <div className="modal-body"><p className="pr-confirm-copy">Mark <strong>{proposal.title}</strong> as <span className={`badge ${proposalStatusBadge(decision)}`}>{decision}</span>?</p>{note.trim() && <p className="pr-confirm-note">Review note: {note.trim()}</p>}<p className="sm-demo-note">This updates the proposal status in the active review workflow.</p></div>
             <div className="modal-footer"><button className="btn-secondary" onClick={() => setConfirming(false)}>Back to Review</button><button className="btn-primary" onClick={() => onSave(proposal, { status:decision, reviewNote:note.trim() })}><Icon name="Check" size={14} color="#fff" /> Confirm Decision</button></div>
           </>
         ) : (
@@ -3916,7 +3915,7 @@ function ProposalsPage({ proposals, setProposals, challenges, onOpenChallenge, l
       <div className="welcome-bar">
         <div><h1 className="mc-page-title">Proposals</h1><p className="mc-page-subtitle">Review startup solutions submitted for your department’s challenges.</p></div>
       </div>
-      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice} <span className="pr-demo-caption">Current dashboard record.</span></div>}
+      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice} <span className="pr-demo-caption">Active session record.</span></div>}
       {error && <div className="mc-notice" role="alert" style={{ background:'#FEF2F2', color:'#991B1B', border:'1px solid #FECACA' }}><Icon name="AlertCircle" size={16} color="#991B1B" /> {error}</div>}
 
       <div className="summary-grid pr-summary-grid">
@@ -4125,7 +4124,7 @@ function EvaluationPage({ proposals, evaluations, setEvaluations, startups, chal
   return (
     <div className="page-content evaluation-page">
       <div className="welcome-bar"><div><h1 className="mc-page-title">{scope==='queue'?'Review Queue':scope==='active'?'Active Reviews':scope==='completed'?'Completed Evaluations':'Evaluation'}</h1><p className="mc-page-subtitle">{scope==='queue'?'Review submitted startup proposals and record a recommendation.':scope==='active'?'Continue draft or flagged proposal evaluations.':scope==='completed'?'Review submitted evaluation decisions and scores.':'Score startup proposals against consistent criteria and record a clear recommendation.'}</p></div></div>
-      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}<span className="ev-demo-caption">Current dashboard record.</span></div>}
+      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}<span className="ev-demo-caption">Active session record.</span></div>}
       {error && <div className="mc-notice" role="alert" style={{ background:'#FEF2F2', color:'#991B1B', border:'1px solid #FECACA' }}><Icon name="AlertCircle" size={16} color="#991B1B" /> {error}</div>}
 
       <div className="summary-grid ev-summary-grid">{summaries.map(card => <div key={card.label} className="summary-card"><div className="summary-icon" style={{ background:card.bg }}><Icon name={card.icon} size={20} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}</div>
@@ -4286,7 +4285,7 @@ function PilotTrackingPage({ pilots, setPilots, challenges, startups, onOpenChal
   return (
     <div className="page-content pilot-page">
       <div className="welcome-bar"><div><h1 className="mc-page-title">Pilot Tracking</h1><p className="mc-page-subtitle">Monitor delivery milestones, timelines, and outcomes across active pilots.</p></div></div>
-      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}<span className="pt-demo-caption">Current dashboard record.</span></div>}
+      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}<span className="pt-demo-caption">Active session record.</span></div>}
       {error && <div className="mc-notice" role="alert" style={{ background:'#FEF2F2', color:'#991B1B', border:'1px solid #FECACA' }}><Icon name="AlertCircle" size={16} color="#991B1B" /> {error}</div>}
 
       <div className="summary-grid pt-summary-grid">{summaries.map(card => <div key={card.label} className="summary-card"><div className="summary-icon" style={{ background:card.bg }}><Icon name={card.icon} size={20} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}</div>
@@ -4332,7 +4331,7 @@ function PerformanceDetailsModal({ challenge, proposals, evaluations, pilots, st
           <section className="perf-detail-section"><h3>Challenge brief</h3><p>{challenge.description}</p></section>
           <section className="perf-detail-section"><h3>Pilot progress</h3>{challengePilots.length ? challengePilots.map(pilot => <div className="perf-pilot-detail" key={pilot.id}><div><strong>{pilot.name}</strong><span>{pilot.status} · {pilot.progress}%</span></div><div className="perf-bar-track"><span style={{ width:`${pilot.progress}%` }} /></div><div className="perf-pilot-dates">{formatProposalDate(pilot.startDate)} – {formatProposalDate(pilot.endDate)}</div>{pilot.milestones.map(milestone => <div className="perf-milestone-row" key={milestone.id}><span>{milestone.title}</span><span className={`badge ${pilotStatusBadge(milestone.status)}`}>{milestone.status}</span></div>)}</div>) : <p>No pilots are linked to this challenge yet.</p>}</section>
           <section className="perf-detail-section"><h3>Proposed outcomes <span>(unverified)</span></h3>{challengeProposals.length ? challengeProposals.map(proposal => <div className="perf-outcome" key={proposal.id}><strong>{startups.find(startup => startup.id === proposal.startupId)?.name || 'Startup proposal'}</strong><p>{proposal.expectedOutcomes}</p></div>) : <p>No proposal outcomes have been submitted.</p>}</section>
-          <p className="perf-demo-note">All figures are calculated from the current dashboard records. Proposed outcomes are not measured results.</p>
+          <p className="perf-demo-note">All figures are calculated from the active dashboard dataset. Proposed outcomes are planning estimates, not measured results.</p>
         </div>
         <div className="modal-footer"><button className="btn-secondary" onClick={onClose}>Close</button><button className="btn-primary" onClick={() => onOpenChallenge(challenge.id)}><Icon name="FileText" size={14} color="#fff" /> View Challenge</button></div>
       </div>
@@ -4418,11 +4417,11 @@ function PerformancePage({ challenges, matches, proposals, evaluations, pilots, 
   return (
     <div className="page-content performance-page">
       <div className="welcome-bar"><div><h1 className="mc-page-title">Performance</h1><p className="mc-page-subtitle">A live summary of challenge activity, proposals, evaluations, and pilot delivery.</p></div></div>
-      <p className="performance-demo-note"><Icon name="Info" size={14} color="#667085" /> Metrics are derived from the current dashboard record set and are not verified real-world outcomes.</p>
+      <p className="performance-demo-note"><Icon name="Info" size={14} color="#667085" /> Metrics are derived from the active dashboard dataset and are intended for planning review, not verified program results.</p>
 
       <div className="summary-grid pf-summary-grid">{summaryCards.map(card => <div className="summary-card" key={card.label}><div className="summary-icon" style={{background:card.bg}}><Icon name={card.icon} size={20} color={card.color} /></div><div className="pf-summary-copy"><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div><div className="pf-summary-note">{card.note}</div></div></div>)}</div>
 
-<section className="pf-metrics-section"><div className="pf-section-heading"><div><h2>Program metrics</h2><p>Each rate is calculated from the current dashboard records shown below.</p></div></div><div className="pf-metric-grid">{metrics.map(metric => <article className="card pf-metric-card" key={metric.label}><div className="pf-metric-heading"><strong>{metric.label}</strong><span>{metric.value}</span></div><div className="pf-metric-track" role="img" aria-label={`${metric.label}: ${metric.value}`}><span style={{width:`${metric.percent}%`}} /></div><p>{metric.formula}</p></article>)}</div></section>
+<section className="pf-metrics-section"><div className="pf-section-heading"><div><h2>Program metrics</h2><p>Each rate is calculated from the active dataset shown below.</p></div></div><div className="pf-metric-grid">{metrics.map(metric => <article className="card pf-metric-card" key={metric.label}><div className="pf-metric-heading"><strong>{metric.label}</strong><span>{metric.value}</span></div><div className="pf-metric-track" role="img" aria-label={`${metric.label}: ${metric.value}`}><span style={{width:`${metric.percent}%`}} /></div><p>{metric.formula}</p></article>)}</div></section>
 
       <div className="pf-chart-grid">
         <section className="card pf-chart-card"><div className="pf-card-heading"><div><h2>Challenge status</h2><p>Current challenge records by status.</p></div></div><div className="pf-status-chart">{statusCounts.map(item => <div className="pf-status-item" key={item.status}><div className="pf-status-label"><span>{item.status}</span><strong>{item.count}</strong></div><div className="pf-chart-track"><span className={`pf-status-bar pf-status-${item.status.replace(' ','-').toLowerCase()}`} style={{width:`${challenges.length ? item.count / challenges.length * 100 : 0}%`}} /></div></div>)}</div></section>
