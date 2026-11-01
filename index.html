@@ -3608,7 +3608,7 @@ function StartupMatchReviewModal({ match, onClose, onSave }) {
               <textarea id="sm-review-note" className={`form-textarea${error ? ' mc-input-error' : ''}`} value={note} maxLength={500} onChange={event => { setNote(event.target.value); setError(''); }} placeholder="Add a concise reason for this review outcome…" aria-invalid={!!error} />
               {error && <div className="mc-field-error" role="alert">{error}</div>}
             </div>
-            <p className="sm-demo-note">This review is held in the current demo session only.</p>
+            <p className="sm-demo-note">This review updates the current dashboard workflow for this startup.</p>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
@@ -3743,7 +3743,7 @@ function StartupMatchesPage({ matches, setMatches, challenges, onOpenChallenge, 
 
       {dialog?.type === 'details' && <StartupMatchDetailsModal match={dialog.match} challenge={challengeById(dialog.match.challengeId)} onClose={() => setDialog(null)} onReview={match => setDialog({ type:'review', match })} onShortlist={toggleShortlist} onOpenChallenge={id => { setDialog(null); onOpenChallenge(id); }} />}
       {dialog?.type === 'review' && <StartupMatchReviewModal match={dialog.match} onClose={() => setDialog(null)} onSave={saveReview} />}
-      {dialog?.type === 'remove' && <div className="modal-overlay sm-modal" onClick={event => { if (event.target === event.currentTarget) setDialog(null); }}><div className="modal-box sm-confirm-box" role="dialog" aria-modal="true" aria-labelledby="sm-remove-heading"><div className="modal-header"><span className="modal-title" id="sm-remove-heading">Remove startup match?</span><button className="icon-btn" onClick={() => setDialog(null)} aria-label="Close confirmation"><Icon name="X" size={16} /></button></div><div className="modal-body"><p className="sm-remove-copy">Remove <strong>{dialog.match.name}</strong> from this demo match list? This can’t be undone during this session.</p><p className="sm-demo-note">This only changes the current frontend demo state.</p></div><div className="modal-footer"><button className="btn-secondary" onClick={() => setDialog(null)}>Keep Match</button><button className="sm-confirm-remove" onClick={() => removeMatch(dialog.match)}><Icon name="Trash2" size={14} /> Remove Match</button></div></div></div>}
+      {dialog?.type === 'remove' && <div className="modal-overlay sm-modal" onClick={event => { if (event.target === event.currentTarget) setDialog(null); }}><div className="modal-box sm-confirm-box" role="dialog" aria-modal="true" aria-labelledby="sm-remove-heading"><div className="modal-header"><span className="modal-title" id="sm-remove-heading">Remove startup match?</span><button className="icon-btn" onClick={() => setDialog(null)} aria-label="Close confirmation"><Icon name="X" size={16} /></button></div><div className="modal-body"><p className="sm-remove-copy">Remove <strong>{dialog.match.name}</strong> from the current match list? This action updates the dashboard view for this session.</p><p className="sm-demo-note">This only updates the current list in this dashboard.</p></div><div className="modal-footer"><button className="btn-secondary" onClick={() => setDialog(null)}>Keep Match</button><button className="sm-confirm-remove" onClick={() => removeMatch(dialog.match)}><Icon name="Trash2" size={14} /> Remove Match</button></div></div></div>}
     </div>
   );
 }
@@ -3828,7 +3828,7 @@ function ProposalReviewModal({ proposal, onClose, onSave }) {
         {confirming ? (
           <>
             <div className="modal-header"><span className="modal-title" id="pr-review-title">Confirm proposal decision</span><button className="icon-btn" onClick={onClose} aria-label="Close review confirmation"><Icon name="X" size={16} /></button></div>
-            <div className="modal-body"><p className="pr-confirm-copy">Mark <strong>{proposal.title}</strong> as <span className={`badge ${proposalStatusBadge(decision)}`}>{decision}</span>?</p>{note.trim() && <p className="pr-confirm-note">Review note: {note.trim()}</p>}<p className="sm-demo-note">This changes the current frontend demo state only.</p></div>
+            <div className="modal-body"><p className="pr-confirm-copy">Mark <strong>{proposal.title}</strong> as <span className={`badge ${proposalStatusBadge(decision)}`}>{decision}</span>?</p>{note.trim() && <p className="pr-confirm-note">Review note: {note.trim()}</p>}<p className="sm-demo-note">This updates the proposal status in the current dashboard record.</p></div>
             <div className="modal-footer"><button className="btn-secondary" onClick={() => setConfirming(false)}>Back to Review</button><button className="btn-primary" onClick={() => onSave(proposal, { status:decision, reviewNote:note.trim() })}><Icon name="Check" size={14} color="#fff" /> Confirm Decision</button></div>
           </>
         ) : (
@@ -3909,7 +3909,7 @@ function ProposalsPage({ proposals, setProposals, challenges, onOpenChallenge, l
       <div className="welcome-bar">
         <div><h1 className="mc-page-title">Proposals</h1><p className="mc-page-subtitle">Review startup solutions submitted for your department’s challenges.</p></div>
       </div>
-      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice} <span className="pr-demo-caption">Demo session only.</span></div>}
+      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice} <span className="pr-demo-caption">Current dashboard record.</span></div>}
       {error && <div className="mc-notice" role="alert" style={{ background:'#FEF2F2', color:'#991B1B', border:'1px solid #FECACA' }}><Icon name="AlertCircle" size={16} color="#991B1B" /> {error}</div>}
 
       <div className="summary-grid pr-summary-grid">
@@ -4054,7 +4054,7 @@ function EvaluationEditorModal({ proposal, evaluation, challenge, onClose, onSav
               <div className="form-group"><label className="form-label" htmlFor="ev-recommendation">Final recommendation</label><select id="ev-recommendation" className={`form-select${errors.recommendation ? ' mc-input-error' : ''}`} value={recommendation} onChange={event => { setRecommendation(event.target.value); setErrors(previous => ({ ...previous, recommendation:'' })); }}><option value="">Select recommendation</option>{['Accept','Request Revisions','Reject'].map(option => <option key={option} value={option}>{option}</option>)}</select>{errors.recommendation && <div className="mc-field-error" role="alert">{errors.recommendation}</div>}</div>
               <label className="ev-flag-option"><input type="checkbox" checked={flagged} onChange={event => setFlagged(event.target.checked)} /><span>Flag for additional review</span></label>
               {errors.draft && <div className="mc-field-error" role="alert">{errors.draft}</div>}
-              <p className="sm-demo-note">Scores and comments are stored in the active prototype state while this review is in progress.</p>
+              <p className="sm-demo-note">Scores and comments are saved in the active dashboard record while this review is in progress.</p>
             </div>
             <div className="modal-footer ev-editor-footer"><button type="button" className="btn-secondary" onClick={saveDraft}>Save Draft</button><button type="submit" className="btn-primary"><Icon name="Send" size={14} color="#fff" /> Submit Evaluation</button></div>
           </form>
@@ -4118,7 +4118,7 @@ function EvaluationPage({ proposals, evaluations, setEvaluations, startups, chal
   return (
     <div className="page-content evaluation-page">
       <div className="welcome-bar"><div><h1 className="mc-page-title">{scope==='queue'?'Review Queue':scope==='active'?'Active Reviews':scope==='completed'?'Completed Evaluations':'Evaluation'}</h1><p className="mc-page-subtitle">{scope==='queue'?'Review submitted startup proposals and record a recommendation.':scope==='active'?'Continue draft or flagged proposal evaluations.':scope==='completed'?'Review submitted evaluation decisions and scores.':'Score startup proposals against consistent criteria and record a clear recommendation.'}</p></div></div>
-      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}<span className="ev-demo-caption">Demo session only.</span></div>}
+      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}<span className="ev-demo-caption">Current dashboard record.</span></div>}
       {error && <div className="mc-notice" role="alert" style={{ background:'#FEF2F2', color:'#991B1B', border:'1px solid #FECACA' }}><Icon name="AlertCircle" size={16} color="#991B1B" /> {error}</div>}
 
       <div className="summary-grid ev-summary-grid">{summaries.map(card => <div key={card.label} className="summary-card"><div className="summary-icon" style={{ background:card.bg }}><Icon name={card.icon} size={20} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}</div>
@@ -4224,7 +4224,7 @@ function PilotEditorModal({ pilot, onClose, onSave }) {
               {errors.completion && <div className="mc-field-error pt-completion-error" role="alert">{errors.completion}</div>}
               <div className="pt-editor-section"><h3>Milestones</h3>{milestones.map(milestone => <div className="pt-edit-milestone" key={milestone.id}><div><strong>{milestone.title}</strong><span>Due {formatProposalDate(milestone.dueDate)}</span></div><select className="form-select" aria-label={`Milestone status: ${milestone.title}`} value={milestone.status} onChange={event => setMilestones(previous => previous.map(item => item.id === milestone.id ? { ...item, status:event.target.value } : item))}><option>Planned</option><option>In Progress</option><option>Completed</option><option>Delayed</option></select></div>)}</div>
               <div className="form-group pt-notes-group"><label className="form-label" htmlFor="pt-notes">Pilot notes</label><textarea id="pt-notes" className={`form-textarea${errors.notes ? ' mc-input-error' : ''}`} maxLength={600} value={notes} onChange={event => { setNotes(event.target.value); setErrors(previous => ({ ...previous, notes:'' })); }} placeholder="Add a progress update or note for the department…" />{errors.notes && <span className="mc-field-error" role="alert">{errors.notes}</span>}<span className="pt-notes-count">{notes.length}/600</span></div>
-              <p className="sm-demo-note">Pilot updates are stored in the active prototype record while this review is active.</p>
+              <p className="sm-demo-note">Pilot updates are saved in the active dashboard record while this review is in progress.</p>
             </div>
             <div className="modal-footer"><button type="button" className="btn-secondary" onClick={onClose}>Cancel</button><button type="submit" className="btn-primary"><Icon name="Save" size={14} color="#fff" /> Save Updates</button></div>
           </form>
@@ -4279,7 +4279,7 @@ function PilotTrackingPage({ pilots, setPilots, challenges, startups, onOpenChal
   return (
     <div className="page-content pilot-page">
       <div className="welcome-bar"><div><h1 className="mc-page-title">Pilot Tracking</h1><p className="mc-page-subtitle">Monitor delivery milestones, timelines, and outcomes across active pilots.</p></div></div>
-      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}<span className="pt-demo-caption">Demo session only.</span></div>}
+      {notice && <div className="mc-notice" role="status"><Icon name="CheckCircle" size={16} color="#0F9D8A" />{notice}<span className="pt-demo-caption">Current dashboard record.</span></div>}
       {error && <div className="mc-notice" role="alert" style={{ background:'#FEF2F2', color:'#991B1B', border:'1px solid #FECACA' }}><Icon name="AlertCircle" size={16} color="#991B1B" /> {error}</div>}
 
       <div className="summary-grid pt-summary-grid">{summaries.map(card => <div key={card.label} className="summary-card"><div className="summary-icon" style={{ background:card.bg }}><Icon name={card.icon} size={20} color={card.color} /></div><div><div className="summary-value">{card.value}</div><div className="summary-label">{card.label}</div></div></div>)}</div>
