@@ -1,4 +1,5 @@
 package com.civicbridge.controller;
+import java.util.HashMap;
 
 import java.util.Map;
 
@@ -28,13 +29,16 @@ public class AuthController {
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
             UserAccount user = authService.register(request);
-            return ResponseEntity.ok(Map.of(
-                "message", "User registered successfully",
-                "id", user.getId(),
-                "email", user.getEmail(),
-                "role", user.getRole(),
-                "startupName", user.getStartupName()
-            ));
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "User registered successfully");
+            response.put("id", user.getId());
+            response.put("email", user.getEmail());
+            response.put("role", user.getRole());
+            response.put("startupName", user.getStartupName());
+
+            return ResponseEntity.ok(response);
+
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         }
