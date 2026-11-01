@@ -56,7 +56,7 @@ class AuthServiceTest {
             null
         ));
 
-        assertThrows(IllegalArgumentException.class, () -> authService.register(new RegisterRequest(
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> authService.register(new RegisterRequest(
             "Duplicate User",
             "duplicate@example.com",
             "AnotherPass123",
@@ -65,6 +65,8 @@ class AuthServiceTest {
             "Director",
             null
         )));
+
+        assertEquals("User already exists", exception.getMessage());
     }
 
     @Test
@@ -72,7 +74,7 @@ class AuthServiceTest {
         InMemoryDataStore store = new InMemoryDataStore();
         AuthService authService = new AuthService(store, new JwtUtil());
 
-        assertThrows(IllegalArgumentException.class, () -> authService.register(new RegisterRequest(
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> authService.register(new RegisterRequest(
             "Startup Founder",
             "founder@example.com",
             "StrongPass123",
@@ -81,6 +83,8 @@ class AuthServiceTest {
             "Founder",
             "   "
         )));
+
+        assertEquals("Startup name is required", exception.getMessage());
     }
 
     @Test
@@ -88,7 +92,7 @@ class AuthServiceTest {
         InMemoryDataStore store = new InMemoryDataStore();
         AuthService authService = new AuthService(store, new JwtUtil());
 
-        assertThrows(IllegalArgumentException.class, () -> authService.register(new RegisterRequest(
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> authService.register(new RegisterRequest(
             "Weak User",
             "weak@example.com",
             "short",
@@ -97,5 +101,7 @@ class AuthServiceTest {
             "Founder",
             "Test Startup"
         )));
+
+        assertEquals("Password must be at least 8 characters long and contain both letters and numbers", exception.getMessage());
     }
 }
