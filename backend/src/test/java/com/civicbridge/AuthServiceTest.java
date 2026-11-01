@@ -66,4 +66,36 @@ class AuthServiceTest {
             null
         )));
     }
+
+    @Test
+    void startupRegistrationRequiresStartupName() {
+        InMemoryDataStore store = new InMemoryDataStore();
+        AuthService authService = new AuthService(store, new JwtUtil());
+
+        assertThrows(IllegalArgumentException.class, () -> authService.register(new RegisterRequest(
+            "Startup Founder",
+            "founder@example.com",
+            "StrongPass123",
+            "startup",
+            "AI",
+            "Founder",
+            "   "
+        )));
+    }
+
+    @Test
+    void weakPasswordsAreRejected() {
+        InMemoryDataStore store = new InMemoryDataStore();
+        AuthService authService = new AuthService(store, new JwtUtil());
+
+        assertThrows(IllegalArgumentException.class, () -> authService.register(new RegisterRequest(
+            "Weak User",
+            "weak@example.com",
+            "short",
+            "startup",
+            "AI",
+            "Founder",
+            "Test Startup"
+        )));
+    }
 }

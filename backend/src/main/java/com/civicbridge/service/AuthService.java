@@ -28,9 +28,23 @@ public class AuthService {
     }
 
     public UserAccount register(RegisterRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Request body is required");
+        }
+
+        String fullName = request.fullName() == null ? "" : request.fullName().trim();
+        if (fullName.isBlank()) {
+            throw new IllegalArgumentException("Full name is required");
+        }
+
         String email = request.email() == null ? "" : request.email().trim().toLowerCase(Locale.ROOT);
         if (email.isBlank()) {
             throw new IllegalArgumentException("Email is required");
+        }
+
+        String password = request.password() == null ? "" : request.password();
+        if (!isStrongPassword(password)) {
+            throw new IllegalArgumentException("Password must be at least 8 characters long and contain both letters and numbers");
         }
 
         if (store.findUserByEmail(email) != null) {
@@ -39,9 +53,9 @@ public class AuthService {
 
         UserAccount user = new UserAccount();
         user.setId(store.nextUserId());
-        user.setFullName(request.fullName());
+        user.setFullName(fullName);
         user.setEmail(email);
-        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setPasswordHash(passwordEncoder.encode(password));
         user.setRole(normalizeRole(request.role()));
         user.setDepartment(request.department());
         user.setDesignation(request.designation());
@@ -58,10 +72,20 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
+        if (request == null) {
+            throw new BadCredentialsException("Request body is required");
+        }
+
         String email = request.email() == null ? "" : request.email().trim().toLowerCase(Locale.ROOT);
+        String password = request.password() == null ? "" : request.password();
+
+        if (email.isBlank() || password.isBlank()) {
+            throw new BadCredentialsException("Email and password are required");
+        }
+
         UserAccount user = store.findUserByEmail(email);
 
-        if (user == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        if (user == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new BadCredentialsException("Invalid email or password");
         }
 
@@ -92,5 +116,15 @@ public class AuthService {
             return "evaluator";
         }
         return "startup";
+    }
+
+    private boolean isStrongPassword(String password) {
+        if (password == null || password.length() < 8) {
+            return false;
+        }
+
+        boolean hasLetter = password.chars().anyMatch(Character::isLetter);
+        boolean hasDigit = password.chars().anyMatch(Character::isDigit);
+        return hasLetter && hasDigit;
     }
 }
