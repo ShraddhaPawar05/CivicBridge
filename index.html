@@ -396,7 +396,7 @@ function normalizeProposalRecord(item) {
     id: item.id,
     challengeId: item.challengeId || item.challenge_id || null,
     startupId: item.startupId || item.startup_id || null,
-    startupName: item.startupName || item.startup_name || 'Startup applicant',
+    startupName: resolveStartupName(item.startupName || item.startup_name || item.name, 'Startup applicant'),
     title: item.title || 'Untitled proposal',
     description: item.description || item.summary || 'No description provided.',
     solution: item.solution || item.summary || 'No solution summary provided.',
@@ -410,14 +410,14 @@ function normalizeProposalRecord(item) {
 }
 
 function normalizeMatchRecord(item) {
-  const name = item.name || item.startupName || item.startup_name || 'Startup';
+  const name = resolveStartupName(item.name || item.startupName || item.startup_name, 'Startup');
   const initials = item.initials || name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'ST';
   return {
     id: item.id,
     challengeId: item.challengeId || item.challenge_id || null,
     startupId: item.startupId || item.startup_id || null,
     name,
-    startupName: item.startupName || item.startup_name || name,
+    startupName: resolveStartupName(item.startupName || item.startup_name || name, name),
     initials,
     color: item.color || '#173C70',
     domain: item.domain || 'General',
@@ -453,6 +453,11 @@ function normalizePilotRecord(item) {
     milestones: Array.isArray(item.milestones) ? item.milestones : [],
     notes: item.notes || '',
   };
+}
+
+function resolveStartupName(value, fallback = 'Startup') {
+  const cleaned = (value || '').trim();
+  return cleaned || fallback;
 }
 
 // Derive two-letter initials from a full name (e.g. "Jane Doe" -> "JD").
@@ -2493,7 +2498,7 @@ function StartupDashboard({ setPage }) {
   const [startupPilotRecords,setStartupPilotRecords] = useState(() => INITIAL_GOV_PILOTS.filter(pilot => pilot.startupId === 2).map(pilot => ({ ...pilot, milestones:pilot.milestones.map(milestone => ({ ...milestone })) })));
   const userSession = getSession();
   const registeredStartup = PUBLIC_STARTUPS.find(item => item.id === 2) || PUBLIC_STARTUPS[0];
-  const defaultStartupName = userSession?.startupName || registeredStartup.name;
+  const defaultStartupName = resolveStartupName(userSession?.startupName, registeredStartup.name);
   const [startupProfile,setStartupProfile] = useState(() => ({
     companyName:defaultStartupName,
     initials:defaultStartupName.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase() || registeredStartup.initials,
