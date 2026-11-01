@@ -1681,6 +1681,7 @@ function RoleLoginForm({ role, setPage }) {
         email: payload.email || email.trim(),
         role: payload.role || role,
         fullName: payload.fullName || 'User',
+        startupName: payload.startupName || '',
         token: payload.token || '',
       });
       setPage(m.dest);
@@ -2490,10 +2491,12 @@ function StartupDashboard({ setPage }) {
   const [savedChallengeIds,setSavedChallengeIds] = useState([]);
   const [startupProposals,setStartupProposals] = useState(() => INITIAL_GOV_PROPOSALS.filter(proposal => proposal.startupId === 2));
   const [startupPilotRecords,setStartupPilotRecords] = useState(() => INITIAL_GOV_PILOTS.filter(pilot => pilot.startupId === 2).map(pilot => ({ ...pilot, milestones:pilot.milestones.map(milestone => ({ ...milestone })) })));
+  const userSession = getSession();
   const registeredStartup = PUBLIC_STARTUPS.find(item => item.id === 2) || PUBLIC_STARTUPS[0];
+  const defaultStartupName = userSession?.startupName || registeredStartup.name;
   const [startupProfile,setStartupProfile] = useState(() => ({
-    companyName:registeredStartup.name,
-    initials:registeredStartup.initials,
+    companyName:defaultStartupName,
+    initials:defaultStartupName.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase() || registeredStartup.initials,
     founderName:'',
     email:'',
     domain:registeredStartup.tags.join(', '),
@@ -2504,8 +2507,8 @@ function StartupDashboard({ setPage }) {
     color:registeredStartup.color,
   }));
   const startupProfileDefaults = {
-    companyName:registeredStartup.name,
-    initials:registeredStartup.initials,
+    companyName:defaultStartupName,
+    initials:defaultStartupName.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase() || registeredStartup.initials,
     founderName:'',
     email:'',
     domain:registeredStartup.tags.join(', '),
@@ -5128,6 +5131,7 @@ function GovRegisterPage({ setPage }) {
         email: loginResponse.email || f.email.trim(),
         role: loginResponse.role || 'gov',
         fullName: loginResponse.fullName || f.name.trim(),
+        startupName: loginResponse.startupName || '',
         token: loginResponse.token || '',
       });
       setSubmitted(true);
@@ -5251,6 +5255,7 @@ function StartupRegisterPage({ setPage }) {
           role: 'startup',
           department: f.domain,
           designation: 'Founder',
+          startupName: f.startupName.trim(),
         }),
       });
 
@@ -5266,6 +5271,7 @@ function StartupRegisterPage({ setPage }) {
         email: loginResponse.email || f.email.trim(),
         role: loginResponse.role || 'startup',
         fullName: loginResponse.fullName || f.name.trim(),
+        startupName: loginResponse.startupName || f.startupName.trim(),
         token: loginResponse.token || '',
       });
       setSubmitted(true);
@@ -5402,6 +5408,7 @@ function EvaluatorRegisterPage({ setPage }) {
         email: loginResponse.email || f.email.trim(),
         role: loginResponse.role || 'evaluator',
         fullName: loginResponse.fullName || f.name.trim(),
+        startupName: loginResponse.startupName || '',
         token: loginResponse.token || '',
       });
       setSubmitted(true);
