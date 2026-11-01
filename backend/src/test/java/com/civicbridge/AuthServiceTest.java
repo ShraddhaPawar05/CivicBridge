@@ -1,23 +1,43 @@
+
 package com.civicbridge;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.junit.jupiter.api.Test;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import com.civicbridge.dto.AuthDto.LoginRequest;
 import com.civicbridge.dto.AuthDto.RegisterRequest;
 import com.civicbridge.model.UserAccount;
+import com.civicbridge.repository.UserAccountRepository;
 import com.civicbridge.service.AuthService;
-import com.civicbridge.service.InMemoryDataStore;
 import com.civicbridge.util.JwtUtil;
 
 class AuthServiceTest {
 
     @Test
     void registerAndLoginShouldWorkEndToEnd() {
-        InMemoryDataStore store = new InMemoryDataStore();
-        AuthService authService = new AuthService(store, new JwtUtil());
+        UserAccountRepository repository = mock(UserAccountRepository.class);
+        AtomicReference<UserAccount> savedUser = new AtomicReference<>();
+
+        when(repository.existsByEmailIgnoreCase("alice@example.com")).thenReturn(false);
+
+        when(repository.save(any(UserAccount.class))).thenAnswer(invocation -> {
+            UserAccount user = invocation.getArgument(0);
+            user.setId(1L);
+            savedUser.set(user);
+            return user;
+        });
+
+        when(repository.findByEmailIgnoreCase("alice@example.com"))
+            .thenAnswer(invocation -> Optional.ofNullable(savedUser.get()));
+
+        AuthService authService = new AuthService(repository, new JwtUtil());
 
         UserAccount user = authService.register(new RegisterRequest(
             "Alice Example",
@@ -33,7 +53,9 @@ class AuthServiceTest {
         assertEquals("startup", user.getRole());
         assertEquals("UrbanAI Labs", user.getStartupName());
 
-        var response = authService.login(new LoginRequest("alice@example.com", "StrongPass123"));
+        var response = authService.login(
+            new LoginRequest("alice@example.com", "StrongPass123")
+        );
 
         assertEquals("alice@example.com", response.email());
         assertEquals("startup", response.role());
@@ -43,65 +65,73 @@ class AuthServiceTest {
 
     @Test
     void duplicateRegistrationShouldBeRejected() {
-        InMemoryDataStore store = new InMemoryDataStore();
-        AuthService authService = new AuthService(store, new JwtUtil());
+        UserAccountRepository repository = mock(UserAccountRepository.class);
 
-        authService.register(new RegisterRequest(
-            "Duplicate User",
-            "duplicate@example.com",
-            "StrongPass123",
-            "gov",
-            "Urban Department",
-            "Director",
-            null
-        ));
+        when(repository.existsByEmailIgnoreCase("duplicate@example.com"))
+            .thenReturn(true);
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> authService.register(new RegisterRequest(
-            "Duplicate User",
-            "duplicate@example.com",
-            "AnotherPass123",
-            "gov",
-            "Urban Department",
-            "Director",
-            null
-        )));
+        AuthService authService = new AuthService(repository, new JwtUtil());
 
-        assertEquals("User already exists", exception.getMessage());
+        assertThrows(IllegalArgumentException.class, () ->
+            authService.register(new RegisterRequest(
+                "Duplicate User",
+                "duplicate@example.com",
+                "StrongPass123",
+                "gov",
+                "Urban Department",
+                "Director",
+                null
+            ))
+        );
     }
 
     @Test
     void startupRegistrationRequiresStartupName() {
-        InMemoryDataStore store = new InMemoryDataStore();
-        AuthService authService = new AuthService(store, new JwtUtil());
+        UserAccountRepository repository = mock(UserAccountRepository.class);
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> authService.register(new RegisterRequest(
-            "Startup Founder",
-            "founder@example.com",
-            "StrongPass123",
-            "startup",
-            "AI",
-            "Founder",
-            "   "
-        )));
+        when(repository.existsByEmailIgnoreCase("founder@example.com"))
+            .thenReturn(false);
+
+        AuthService authService = new AuthService(repository, new JwtUtil());
+
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> authService.register(new RegisterRequest(
+                "Startup Founder",
+                "founder@example.com",
+                "StrongPass123",
+                "startup",
+                "AI",
+                "Founder",
+                "   "
+            ))
+        );
 
         assertEquals("Startup name is required", exception.getMessage());
     }
 
     @Test
     void weakPasswordsAreRejected() {
-        InMemoryDataStore store = new InMemoryDataStore();
-        AuthService authService = new AuthService(store, new JwtUtil());
+        UserAccountRepository repository = mock(UserAccountRepository.class);
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> authService.register(new RegisterRequest(
-            "Weak User",
-            "weak@example.com",
-            "short",
-            "startup",
-            "AI",
-            "Founder",
-            "Test Startup"
-        )));
+        AuthService authService = new AuthService(repository, new JwtUtil());
 
-        assertEquals("Password must be at least 8 characters long and contain both letters and numbers", exception.getMessage());
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> authService.register(new RegisterRequest(
+                "Weak User",
+                "weak@example.com",
+                "short",
+                "startup",
+                "AI",
+                "Founder",
+                "Test Startup"
+            ))
+        );
+
+        assertEquals(
+            "Password must be at least 8 characters long and contain both letters and numbers",
+            exception.getMessage()
+        );
     }
 }

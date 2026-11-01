@@ -1,11 +1,28 @@
+
 package com.civicbridge.model;
 
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "user_accounts")
 public class UserAccount {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false)
     private String fullName;
+
+    @Column(nullable = false, unique = true)
     private String email;
+
+    @Column(nullable = false)
     private String passwordHash;
+
+    @Column(nullable = false)
     private String role;
+
     private String department;
     private String designation;
     private String startupName;
@@ -72,12 +89,12 @@ public class UserAccount {
         return department;
     }
 
-    public String getDesignation() {
-        return designation;
-    }
-
     public void setDepartment(String department) {
         this.department = department;
+    }
+
+    public String getDesignation() {
+        return designation;
     }
 
     public void setDesignation(String designation) {

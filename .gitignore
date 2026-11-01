@@ -4,3 +4,15 @@
 node_modules/
 .DS_Store
 Thumbs.db
+
+# Maven generated files
+backend/target/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# IDE files
+.idea/
+.vscode/

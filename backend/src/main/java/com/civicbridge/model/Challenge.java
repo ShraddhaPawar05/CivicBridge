@@ -1,24 +1,57 @@
+
 package com.civicbridge.model;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "challenges")
 public class Challenge {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false)
     private String title;
+
     private String dept;
     private String category;
     private String deadline;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
+
     private String status;
     private String badge;
     private int applications;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+        name = "challenge_tags",
+        joinColumns = @JoinColumn(name = "challenge_id")
+    )
+    @Column(name = "tag")
     private List<String> tags = new ArrayList<>();
 
     public Challenge() {
     }
 
-    public Challenge(Long id, String title, String dept, String category, String deadline, String description, String status, String badge, int applications, List<String> tags) {
+    public Challenge(Long id, String title, String dept, String category,
+            String deadline, String description, String status,
+            String badge, int applications, List<String> tags) {
+
         this.id = id;
         this.title = title;
         this.dept = dept;
@@ -28,7 +61,7 @@ public class Challenge {
         this.status = status;
         this.badge = badge;
         this.applications = applications;
-        this.tags = tags;
+        this.tags = tags == null ? new ArrayList<>() : tags;
     }
 
     public Long getId() {
@@ -108,6 +141,6 @@ public class Challenge {
     }
 
     public void setTags(List<String> tags) {
-        this.tags = tags;
+        this.tags = tags == null ? new ArrayList<>() : tags;
     }
 }

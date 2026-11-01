@@ -1,23 +1,54 @@
+
 package com.civicbridge.model;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "proposals")
 public class Proposal {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private Long challengeId;
     private Long startupId;
     private String startupName;
     private String title;
+
+    @Column(columnDefinition = "TEXT")
     private String summary;
+
     private String status;
     private int budget;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+        name = "proposal_technologies",
+        joinColumns = @JoinColumn(name = "proposal_id")
+    )
+    @Column(name = "technology")
     private List<String> technologies = new ArrayList<>();
 
     public Proposal() {
     }
 
-    public Proposal(Long id, Long challengeId, Long startupId, String startupName, String title, String summary, String status, int budget, List<String> technologies) {
+    public Proposal(Long id, Long challengeId, Long startupId,
+            String startupName, String title, String summary,
+            String status, int budget, List<String> technologies) {
+
         this.id = id;
         this.challengeId = challengeId;
         this.startupId = startupId;
@@ -26,7 +57,9 @@ public class Proposal {
         this.summary = summary;
         this.status = status;
         this.budget = budget;
-        this.technologies = technologies;
+        this.technologies = technologies == null
+                ? new ArrayList<>()
+                : technologies;
     }
 
     public Long getId() {
@@ -98,6 +131,8 @@ public class Proposal {
     }
 
     public void setTechnologies(List<String> technologies) {
-        this.technologies = technologies;
+        this.technologies = technologies == null
+                ? new ArrayList<>()
+                : technologies;
     }
 }
