@@ -30,9 +30,9 @@ public class InMemoryDataStore {
     }
 
     private void seedDefaults() {
-        users.add(new UserAccount(1L, "Government Admin", "gov@civicbridge.io", "$2a$10$8gLQcaDrW7nW6jB5fJ9M0ONgYNJ0Wz6iuRzE3dR0nYX9dK4hApwD6", "gov", "Urban Department", "Program Director"));
-        users.add(new UserAccount(2L, "Startup Lead", "startup@civicbridge.io", "$2a$10$8gLQcaDrW7nW6jB5fJ9M0ONgYNJ0Wz6iuRzE3dR0nYX9dK4hApwD6", "startup", "Product", "Founder"));
-        users.add(new UserAccount(3L, "Evaluator User", "evaluator@civicbridge.io", "$2a$10$8gLQcaDrW7nW6jB5fJ9M0ONgYNJ0Wz6iuRzE3dR0nYX9dK4hApwD6", "evaluator", "Impact", "Analyst"));
+        users.add(new UserAccount(1L, "Government Admin", "gov@civicbridge.io", "$2a$10$8gLQcaDrW7nW6jB5fJ9M0ONgYNJ0Wz6iuRzE3dR0nYX9dK4hApwD6", "gov", "Urban Department", "Program Director", null));
+        users.add(new UserAccount(2L, "Startup Lead", "startup@civicbridge.io", "$2a$10$8gLQcaDrW7nW6jB5fJ9M0ONgYNJ0Wz6iuRzE3dR0nYX9dK4hApwD6", "startup", "Product", "Founder", "EcoTech Solutions"));
+        users.add(new UserAccount(3L, "Evaluator User", "evaluator@civicbridge.io", "$2a$10$8gLQcaDrW7nW6jB5fJ9M0ONgYNJ0Wz6iuRzE3dR0nYX9dK4hApwD6", "evaluator", "Impact", "Analyst", null));
 
         challenges.add(new Challenge(101L, "Smart Waste Collection", "Sanitation Department", "Smart Cities", "2026-10-30", "Optimize city waste collection using AI and smart bins.", "Open", "badge-blue", 12, List.of("AI", "IoT", "Smart City")));
         challenges.add(new Challenge(102L, "Urban Water Quality Monitoring", "Water Authority", "Environment", "2026-11-15", "Track water quality across the municipal network.", "Evaluation", "badge-amber", 9, List.of("IoT", "Analytics", "Environment")));

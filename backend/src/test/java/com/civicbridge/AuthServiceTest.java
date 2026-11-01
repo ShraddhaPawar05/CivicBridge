@@ -25,16 +25,19 @@ class AuthServiceTest {
             "StrongPass123",
             "startup",
             "AI",
-            "Founder"
+            "Founder",
+            "UrbanAI Labs"
         ));
 
         assertNotNull(user.getId());
         assertEquals("startup", user.getRole());
+        assertEquals("UrbanAI Labs", user.getStartupName());
 
         var response = authService.login(new LoginRequest("alice@example.com", "StrongPass123"));
 
         assertEquals("alice@example.com", response.email());
         assertEquals("startup", response.role());
+        assertEquals("UrbanAI Labs", response.startupName());
         assertNotNull(response.token());
     }
 
@@ -49,7 +52,8 @@ class AuthServiceTest {
             "StrongPass123",
             "gov",
             "Urban Department",
-            "Director"
+            "Director",
+            null
         ));
 
         assertThrows(IllegalArgumentException.class, () -> authService.register(new RegisterRequest(
@@ -58,7 +62,8 @@ class AuthServiceTest {
             "AnotherPass123",
             "gov",
             "Urban Department",
-            "Director"
+            "Director",
+            null
         )));
     }
 }

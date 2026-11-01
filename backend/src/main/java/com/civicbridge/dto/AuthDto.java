@@ -8,7 +8,8 @@ public class AuthDto {
         String password,
         String role,
         String department,
-        String designation
+        String designation,
+        String startupName
     ) {}
 
     public record LoginRequest(
@@ -20,6 +21,7 @@ public class AuthDto {
         String token,
         String email,
         String role,
-        String fullName
+        String fullName,
+        String startupName
     ) {}
 }

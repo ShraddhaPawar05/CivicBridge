@@ -45,6 +45,13 @@ public class AuthService {
         user.setRole(normalizeRole(request.role()));
         user.setDepartment(request.department());
         user.setDesignation(request.designation());
+        if ("startup".equals(user.getRole())) {
+            String startupName = request.startupName() == null ? "" : request.startupName().trim();
+            if (startupName.isBlank()) {
+                throw new IllegalArgumentException("Startup name is required");
+            }
+            user.setStartupName(startupName);
+        }
 
         store.getUsers().add(user);
         return user;
@@ -62,8 +69,10 @@ public class AuthService {
         claims.put("role", user.getRole());
         claims.put("fullName", user.getFullName());
 
+        claims.put("startupName", user.getStartupName());
+
         String token = jwtUtil.generateToken(user.getEmail(), claims);
-        return new AuthResponse(token, user.getEmail(), user.getRole(), user.getFullName());
+        return new AuthResponse(token, user.getEmail(), user.getRole(), user.getFullName(), user.getStartupName());
     }
 
     public void logout() {

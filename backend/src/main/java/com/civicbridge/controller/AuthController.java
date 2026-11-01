@@ -1,17 +1,18 @@
 package com.civicbridge.controller;
 
-import com.civicbridge.dto.AuthDto.AuthResponse;
-import com.civicbridge.dto.AuthDto.LoginRequest;
-import com.civicbridge.dto.AuthDto.RegisterRequest;
-import com.civicbridge.model.UserAccount;
-import com.civicbridge.service.AuthService;
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
+import com.civicbridge.dto.AuthDto.AuthResponse;
+import com.civicbridge.dto.AuthDto.LoginRequest;
+import com.civicbridge.dto.AuthDto.RegisterRequest;
+import com.civicbridge.model.UserAccount;
+import com.civicbridge.service.AuthService;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -31,7 +32,8 @@ public class AuthController {
                 "message", "User registered successfully",
                 "id", user.getId(),
                 "email", user.getEmail(),
-                "role", user.getRole()
+                "role", user.getRole(),
+                "startupName", user.getStartupName()
             ));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));

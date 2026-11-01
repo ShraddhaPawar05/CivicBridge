@@ -8,11 +8,16 @@ public class UserAccount {
     private String role;
     private String department;
     private String designation;
+    private String startupName;
 
     public UserAccount() {
     }
 
     public UserAccount(Long id, String fullName, String email, String passwordHash, String role, String department, String designation) {
+        this(id, fullName, email, passwordHash, role, department, designation, null);
+    }
+
+    public UserAccount(Long id, String fullName, String email, String passwordHash, String role, String department, String designation, String startupName) {
         this.id = id;
         this.fullName = fullName;
         this.email = email;
@@ -20,6 +25,7 @@ public class UserAccount {
         this.role = role;
         this.department = department;
         this.designation = designation;
+        this.startupName = startupName;
     }
 
     public Long getId() {
@@ -76,5 +82,13 @@ public class UserAccount {
 
     public void setDesignation(String designation) {
         this.designation = designation;
+    }
+
+    public String getStartupName() {
+        return startupName;
+    }
+
+    public void setStartupName(String startupName) {
+        this.startupName = startupName;
     }
 }
