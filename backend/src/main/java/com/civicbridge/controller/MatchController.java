@@ -4,6 +4,7 @@ package com.civicbridge.controller;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,6 +23,8 @@ public class MatchController {
         this.matchRepository = matchRepository;
     }
 
+    // All three roles can view matching results
+    @PreAuthorize("hasAnyRole('GOV', 'STARTUP', 'EVALUATOR')")
     @GetMapping("/matches")
     public List<Map<String, Object>> getMatches(
             @RequestParam(required = false) Long challengeId) {
