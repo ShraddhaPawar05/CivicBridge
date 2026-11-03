@@ -2763,6 +2763,7 @@ const NAV_ITEMS = [
   { id:'evaluation',  label:'Evaluation',      icon:'ClipboardCheck'  },
   { id:'pilot',       label:'Pilot Tracking',  icon:'Rocket'          },
   { id:'performance', label:'Performance',     icon:'BarChart2'       },
+  { id:'scale',       label:'Scale Solution',   icon:'TrendingUp'     },
   { id:'settings',    label:'Settings',        icon:'Settings'        },
 ];
 
@@ -4437,6 +4438,222 @@ function PerformancePage({ challenges, matches, proposals, evaluations, pilots, 
   );
 }
 
+function ScaleSolutionPage({ challenges, proposals, pilots, onOpenChallenge }) {
+  const completedPilots = pilots.filter(pilot =>
+    pilot.status === 'Completed' && pilot.progress === 100
+  );
+
+  const activePilots = pilots.filter(pilot =>
+    pilot.status === 'In Progress' || pilot.status === 'Delayed'
+  );
+
+  const [search, setSearch] = useState('');
+  const [selectedPilot, setSelectedPilot] = useState(null);
+
+  const readyPilots = completedPilots.filter(pilot =>
+    !search || (
+      pilot.notes || ''
+    ).toLowerCase().includes(search.toLowerCase()) ||
+    String(pilot.challengeId).includes(search)
+  );
+
+  function getChallengeTitle(challengeId) {
+    return challenges.find(challenge => challenge.id === challengeId)?.title
+      || `Challenge #${challengeId}`;
+  }
+
+  return (
+    <div className="page-content performance-page">
+      <div className="welcome-bar">
+        <div>
+          <h1 className="mc-page-title">Scale the Solution</h1>
+          <p className="mc-page-subtitle">
+            Review completed pilot projects and identify solutions for wider implementation.
+          </p>
+        </div>
+      </div>
+
+      <p className="performance-demo-note">
+        <Icon name="Info" size={14} color="#667085" />
+        Scale readiness is based on recorded pilot completion. Government approval
+        and impact verification must happen before actual expansion.
+      </p>
+
+      <div className="summary-grid pf-summary-grid">
+        <div className="summary-card">
+          <div className="summary-icon" style={{background:'#E6F7F5'}}>
+            <Icon name="CheckCircle" size={20} color="#0F9D8A" />
+          </div>
+          <div className="pf-summary-copy">
+            <div className="summary-value">{completedPilots.length}</div>
+            <div className="summary-label">Completed Pilots</div>
+            <div className="pf-summary-note">Recorded as 100% complete</div>
+          </div>
+        </div>
+
+        <div className="summary-card">
+          <div className="summary-icon" style={{background:'#EBF2FF'}}>
+            <Icon name="Activity" size={20} color="#173C70" />
+          </div>
+          <div className="pf-summary-copy">
+            <div className="summary-value">{activePilots.length}</div>
+            <div className="summary-label">Active Pilots</div>
+            <div className="pf-summary-note">In progress or delayed</div>
+          </div>
+        </div>
+
+        <div className="summary-card">
+          <div className="summary-icon" style={{background:'#FFF4E5'}}>
+            <Icon name="Layers" size={20} color="#b45309" />
+          </div>
+          <div className="pf-summary-copy">
+            <div className="summary-value">{proposals.length}</div>
+            <div className="summary-label">Total Proposals</div>
+            <div className="pf-summary-note">Submitted solutions</div>
+          </div>
+        </div>
+
+        <div className="summary-card">
+          <div className="summary-icon" style={{background:'#F3EEFF'}}>
+            <Icon name="TrendingUp" size={20} color="#6d28d9" />
+          </div>
+          <div className="pf-summary-copy">
+            <div className="summary-value">{readyPilots.length}</div>
+            <div className="summary-label">Scale Candidates</div>
+            <div className="pf-summary-note">Completed pilots matching search</div>
+          </div>
+        </div>
+      </div>
+
+      <section className="card pf-performance-list">
+        <div className="card-header pf-list-header">
+          <div>
+            <div className="card-title">Pilot scale readiness</div>
+            <div className="mc-result-count">
+              {readyPilots.length} completed pilot(s) available for review
+            </div>
+          </div>
+
+          <div className="search-wrap pf-search">
+            <span className="search-icon">
+              <Icon name="Search" size={14} color="#667085" />
+            </span>
+            <input
+              type="search"
+              placeholder="Search pilot or challenge..."
+              aria-label="Search completed pilots"
+              value={search}
+              onChange={event => setSearch(event.target.value)}
+            />
+          </div>
+        </div>
+
+        {readyPilots.length ? (
+          <div className="table-wrap pf-table-wrap">
+            <table className="pf-table">
+              <thead>
+                <tr>
+                  <th>Challenge</th>
+                  <th>Pilot ID</th>
+                  <th>Progress</th>
+                  <th>Pilot Status</th>
+                  <th>Scale Readiness</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {readyPilots.map(pilot => (
+                  <tr key={pilot.id}>
+                    <td className="pf-challenge-cell">
+                      {getChallengeTitle(pilot.challengeId)}
+                    </td>
+                    <td>#{pilot.id}</td>
+                    <td>{pilot.progress}%</td>
+                    <td><span className="badge badge-teal">Completed</span></td>
+                    <td><span className="badge badge-amber">Ready for review</span></td>
+                    <td>
+                      <button
+                        className="btn-secondary pf-detail-button"
+                        onClick={() => setSelectedPilot(pilot)}
+                      >
+                        <Icon name="Eye" size={14} /> Review
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="mc-empty-state">
+            <div className="mc-empty-icon">
+              <Icon name="TrendingUp" size={22} color="#173C70" />
+            </div>
+            <h2>No completed pilots available</h2>
+            <p>
+              A pilot must reach 100% progress and have Completed status
+              before it appears here.
+            </p>
+          </div>
+        )}
+      </section>
+
+      {selectedPilot && (
+        <div className="modal-overlay" onClick={event => {
+          if (event.target === event.currentTarget) setSelectedPilot(null);
+        }}>
+          <div className="modal-box" role="dialog" aria-modal="true">
+            <div className="modal-header">
+              <span className="modal-title">Scale Readiness Review</span>
+              <button
+                className="icon-btn"
+                onClick={() => setSelectedPilot(null)}
+                aria-label="Close review"
+              >
+                <Icon name="X" size={16} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <h3>{getChallengeTitle(selectedPilot.challengeId)}</h3>
+              <p><strong>Pilot ID:</strong> #{selectedPilot.id}</p>
+              <p><strong>Progress:</strong> {selectedPilot.progress}%</p>
+              <p><strong>Status:</strong> {selectedPilot.status}</p>
+              <p><strong>Pilot notes:</strong> {selectedPilot.notes || 'No notes recorded.'}</p>
+
+              <div className="performance-demo-note">
+                This pilot meets the recorded completion criteria.
+                Review its outcomes, costs, risks, and operational requirements
+                before making a government scale-up decision.
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="btn-secondary"
+                onClick={() => setSelectedPilot(null)}
+              >
+                Close
+              </button>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  const challengeId = selectedPilot.challengeId;
+                  setSelectedPilot(null);
+                  onOpenChallenge(challengeId);
+                }}
+              >
+                <Icon name="FileText" size={14} color="#fff" />
+                View Challenge
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SettingsPage({ settings, onSave, onReset, onDensityChange }) {
   const [form, setForm] = useState(() => ({ ...settings, notifications:{ ...settings.notifications } }));
   const [errors, setErrors] = useState({});
@@ -4707,7 +4924,7 @@ function GovInnerPage({ title }) {
 const GOV_PAGE_TITLES = {
   challenges:'My Challenges', post:'Post Challenge', matches:'Startup Matches',
   proposals:'Proposals', evaluation:'Evaluation', pilot:'Pilot Tracking',
-  performance:'Performance', settings:'Settings',
+  performance:'Performance', scale:'Scale the Solution', settings:'Settings',
 };
 
 function GovDashboard({ setPage }) {
@@ -4925,6 +5142,13 @@ function GovDashboard({ setPage }) {
                 ? <PilotTrackingPage pilots={govPilots} setPilots={setGovPilots} challenges={govChallenges} startups={govMatches} onOpenChallenge={openRelatedChallenge} loading={govPilotsLoading} error={govPilotsError} />
               : activeNav === 'performance'
                 ? <PerformancePage challenges={govChallenges} matches={govMatches} proposals={govProposals} evaluations={govEvaluations} pilots={govPilots} onOpenChallenge={openRelatedChallenge} />
+              : activeNav === 'scale'
+                ? <ScaleSolutionPage
+                    challenges={govChallenges}
+                    proposals={govProposals}
+                    pilots={govPilots}
+                    onOpenChallenge={openRelatedChallenge}
+                  />
               : activeNav === 'settings'
                 ? <SettingsPage settings={govSettings} onSave={saveGovSettings} onReset={saveGovSettings} onDensityChange={changeDisplayDensity} />
             : activeNav === 'post'
