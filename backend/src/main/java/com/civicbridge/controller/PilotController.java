@@ -1,7 +1,10 @@
+
 package com.civicbridge.controller;
 
 import com.civicbridge.service.PilotService;
+
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,18 +20,34 @@ public class PilotController {
         this.pilotService = pilotService;
     }
 
+    // All three roles can view pilots
+    @PreAuthorize("hasAnyRole('GOV', 'STARTUP', 'EVALUATOR')")
     @GetMapping("/pilots")
     public List<Map<String, Object>> getPilots() {
         return pilotService.getPilots();
     }
 
+    // Government and Evaluators can update pilot details
+    @PreAuthorize("hasAnyRole('GOV', 'EVALUATOR')")
     @PutMapping("/pilots/{id}")
-    public ResponseEntity<Map<String, Object>> updatePilot(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
-        return ResponseEntity.ok(pilotService.updatePilot(id, payload));
+    public ResponseEntity<Map<String, Object>> updatePilot(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> payload) {
+
+        return ResponseEntity.ok(
+            pilotService.updatePilot(id, payload)
+        );
     }
 
+    // Startups and Evaluators can update pilot milestones
+    @PreAuthorize("hasAnyRole('STARTUP', 'EVALUATOR')")
     @PutMapping("/pilots/{id}/milestones")
-    public ResponseEntity<Map<String, Object>> updateMilestones(@PathVariable Long id, @RequestBody List<Map<String, Object>> milestones) {
-        return ResponseEntity.ok(pilotService.updateMilestones(id, milestones));
+    public ResponseEntity<Map<String, Object>> updateMilestones(
+            @PathVariable Long id,
+            @RequestBody List<Map<String, Object>> milestones) {
+
+        return ResponseEntity.ok(
+            pilotService.updateMilestones(id, milestones)
+        );
     }
 }

@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import com.civicbridge.dto.AuthDto.LoginRequest;
@@ -20,12 +21,25 @@ import com.civicbridge.util.JwtUtil;
 
 class AuthServiceTest {
 
+    private JwtUtil createTestJwtUtil() {
+        JwtUtil jwtUtil = new JwtUtil();
+
+        ReflectionTestUtils.setField(
+            jwtUtil,
+            "secret",
+            "civicbridge-test-secret-key-1234567890"
+        );
+
+        return jwtUtil;
+    }
+
     @Test
     void registerAndLoginShouldWorkEndToEnd() {
         UserAccountRepository repository = mock(UserAccountRepository.class);
         AtomicReference<UserAccount> savedUser = new AtomicReference<>();
 
-        when(repository.existsByEmailIgnoreCase("alice@example.com")).thenReturn(false);
+        when(repository.existsByEmailIgnoreCase("alice@example.com"))
+            .thenReturn(false);
 
         when(repository.save(any(UserAccount.class))).thenAnswer(invocation -> {
             UserAccount user = invocation.getArgument(0);
@@ -37,7 +51,7 @@ class AuthServiceTest {
         when(repository.findByEmailIgnoreCase("alice@example.com"))
             .thenAnswer(invocation -> Optional.ofNullable(savedUser.get()));
 
-        AuthService authService = new AuthService(repository, new JwtUtil());
+        AuthService authService = new AuthService(repository, createTestJwtUtil());
 
         UserAccount user = authService.register(new RegisterRequest(
             "Alice Example",
@@ -70,7 +84,7 @@ class AuthServiceTest {
         when(repository.existsByEmailIgnoreCase("duplicate@example.com"))
             .thenReturn(true);
 
-        AuthService authService = new AuthService(repository, new JwtUtil());
+        AuthService authService = new AuthService(repository, createTestJwtUtil());
 
         assertThrows(IllegalArgumentException.class, () ->
             authService.register(new RegisterRequest(
@@ -92,7 +106,7 @@ class AuthServiceTest {
         when(repository.existsByEmailIgnoreCase("founder@example.com"))
             .thenReturn(false);
 
-        AuthService authService = new AuthService(repository, new JwtUtil());
+        AuthService authService = new AuthService(repository, createTestJwtUtil());
 
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -114,7 +128,7 @@ class AuthServiceTest {
     void weakPasswordsAreRejected() {
         UserAccountRepository repository = mock(UserAccountRepository.class);
 
-        AuthService authService = new AuthService(repository, new JwtUtil());
+        AuthService authService = new AuthService(repository, createTestJwtUtil());
 
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
