@@ -2,9 +2,13 @@
 package com.civicbridge.service;
 
 import com.civicbridge.model.Proposal;
+import com.civicbridge.model.UserAccount;
 import com.civicbridge.repository.ProposalRepository;
+import com.civicbridge.repository.UserAccountRepository;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,97 +17,97 @@ import java.util.List;
 public class ProposalService {
 
     private final ProposalRepository proposalRepository;
+    private final UserAccountRepository userAccountRepository;
 
-    public ProposalService(ProposalRepository proposalRepository) {
+    public ProposalService(
+            ProposalRepository proposalRepository,
+            UserAccountRepository userAccountRepository) {
         this.proposalRepository = proposalRepository;
+        this.userAccountRepository = userAccountRepository;
     }
 
-    public List<Proposal> getProposals(String role, String org) {
+    public List<Proposal> getProposals(
+            String role, String org, String userEmail, String userRole) {
 
-        List<Proposal> filtered = new ArrayList<>();
-
-        for (Proposal proposal : proposalRepository.findAll()) {
-
-            boolean matchesRole =
-                    role == null
-                    || role.isBlank()
-                    || role.equalsIgnoreCase("all")
-                    || role.equalsIgnoreCase("startup");
-
-            boolean matchesOrg =
-                    org == null
-                    || org.isBlank()
-                    || org.equalsIgnoreCase("all")
-                    || (proposal.getStartupName() != null
-                        && proposal.getStartupName().toLowerCase()
-                                .contains(org.toLowerCase()));
-
-            if (matchesRole && matchesOrg) {
-                filtered.add(proposal);
-            }
+        if ("STARTUP".equalsIgnoreCase(userRole)) {
+            UserAccount user = getAuthenticatedUser(userEmail);
+            return proposalRepository.findByStartupId(user.getId());
         }
 
-        return filtered;
+        return proposalRepository.findAll().stream()
+                .filter(proposal ->
+                        org == null || org.isBlank()
+                        || org.equalsIgnoreCase("all")
+                        || (proposal.getStartupName() != null
+                        && proposal.getStartupName().toLowerCase()
+                        .contains(org.toLowerCase())))
+                .toList();
     }
 
     public Proposal createProposal(
             Long challengeId,
-            Long startupId,
-            String startupName,
             String title,
             String summary,
-            String status,
             int budget,
-            List<String> technologies) {
+            List<String> technologies,
+            String userEmail) {
+
+        UserAccount user = getAuthenticatedUser(userEmail);
+
+        if (!"STARTUP".equalsIgnoreCase(user.getRole())) {
+            throw new AccessDeniedException(
+                    "Only startups can submit proposals");
+        }
+
+        if (challengeId == null || title == null || title.isBlank()
+                || summary == null || summary.isBlank() || budget <= 0) {
+            throw new IllegalArgumentException(
+                    "Challenge ID, title, summary and positive budget are required");
+        }
 
         Proposal proposal = new Proposal();
-
         proposal.setChallengeId(challengeId);
-        proposal.setStartupId(startupId);
-        proposal.setStartupName(startupName);
+        proposal.setStartupId(user.getId());
+        proposal.setStartupName(user.getStartupName());
         proposal.setTitle(title);
         proposal.setSummary(summary);
-
-        proposal.setStatus(
-                status == null || status.isBlank()
-                        ? "Submitted"
-                        : status);
-
+        proposal.setStatus("Submitted");
         proposal.setBudget(budget);
-
         proposal.setTechnologies(
-                technologies == null
-                        ? new ArrayList<>()
-                        : technologies);
+                technologies == null ? new ArrayList<>() : technologies);
 
         return proposalRepository.save(proposal);
     }
 
-    public Proposal updateProposal(
+    @Transactional
+    public Proposal updateOwnProposal(
             Long id,
             String title,
             String summary,
-            String status,
             int budget,
-            List<String> technologies) {
+            List<String> technologies,
+            String userEmail) {
+
+        UserAccount user = getAuthenticatedUser(userEmail);
 
         Proposal proposal = proposalRepository.findById(id)
                 .orElseThrow(() ->
                         new IllegalArgumentException("Proposal not found"));
 
-        if (title != null) {
+        if (!proposal.getStartupId().equals(user.getId())) {
+            throw new AccessDeniedException(
+                    "You can update only your own proposals");
+        }
+
+        if (title != null && !title.isBlank()) {
             proposal.setTitle(title);
         }
 
-        if (summary != null) {
+        if (summary != null && !summary.isBlank()) {
             proposal.setSummary(summary);
         }
 
-        if (status != null) {
-            proposal.setStatus(status);
-        }
-
-        if (budget >= 0) {
+        if (budget > 0) {
             proposal.setBudget(budget);
         }
 
@@ -112,5 +116,31 @@ public class ProposalService {
         }
 
         return proposalRepository.save(proposal);
+    }
+
+    public Proposal updateProposalStatus(Long id, String status) {
+
+        if (status == null || !List.of(
+                "Submitted", "Approved", "Rejected"
+        ).contains(status)) {
+            throw new IllegalArgumentException("Invalid proposal status");
+        }
+
+        Proposal proposal = proposalRepository.findById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Proposal not found"));
+
+        proposal.setStatus(status);
+        return proposalRepository.save(proposal);
+    }
+
+    private UserAccount getAuthenticatedUser(String email) {
+        if (email == null || email.isBlank()) {
+            throw new AccessDeniedException("User is not authenticated");
+        }
+
+        return userAccountRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() ->
+                        new AccessDeniedException("User account not found"));
     }
 }

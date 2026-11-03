@@ -6,8 +6,10 @@ import com.civicbridge.service.ProposalService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -21,73 +23,97 @@ public class ProposalController {
         this.proposalService = proposalService;
     }
 
-    // All three roles can view proposals
     @PreAuthorize("hasAnyRole('GOV', 'STARTUP', 'EVALUATOR')")
     @GetMapping("/proposals")
     public List<Proposal> getProposals(
             @RequestParam(required = false) String role,
-            @RequestParam(required = false) String org) {
+            @RequestParam(required = false) String org,
+            Authentication authentication) {
 
-        return proposalService.getProposals(role, org);
+        return proposalService.getProposals(
+                role,
+                org,
+                authentication.getName(),
+                authentication.getAuthorities().iterator().next()
+                        .getAuthority().replace("ROLE_", "")
+        );
     }
 
-    // Only startups can submit proposals
     @PreAuthorize("hasRole('STARTUP')")
     @PostMapping("/proposals")
     public ResponseEntity<?> createProposal(
-            @RequestBody Map<String, Object> payload) {
+            @RequestBody Map<String, Object> payload,
+            Authentication authentication) {
 
         Proposal proposal = proposalService.createProposal(
                 payload.get("challengeId") == null ? null :
                         Long.valueOf(payload.get("challengeId").toString()),
-                payload.get("startupId") == null ? null :
-                        Long.valueOf(payload.get("startupId").toString()),
-                payload.get("startupName") == null ? null :
-                        payload.get("startupName").toString(),
+
                 payload.get("title") == null ? null :
                         payload.get("title").toString(),
+
                 payload.get("summary") == null ? null :
                         payload.get("summary").toString(),
-                payload.get("status") == null ? null :
-                        payload.get("status").toString(),
+
                 payload.get("budget") == null ? 0 :
                         Integer.parseInt(payload.get("budget").toString()),
+
                 payload.get("technologies") instanceof List<?> technologies
-                        ? technologies.stream().map(String::valueOf).toList()
-                        : List.of()
+                        ? new ArrayList<>(
+                                technologies.stream()
+                                        .map(String::valueOf)
+                                        .toList())
+                        : new ArrayList<>(),
+
+                authentication.getName()
         );
 
         return ResponseEntity.ok(proposal);
     }
 
-    // Startups and Evaluators can update proposals
-    @PreAuthorize("hasAnyRole('STARTUP', 'EVALUATOR')")
+    @PreAuthorize("hasRole('STARTUP')")
     @PutMapping("/proposals/{id}")
-    public ResponseEntity<?> updateProposal(
+    public ResponseEntity<?> updateOwnProposal(
             @PathVariable Long id,
-            @RequestBody Map<String, Object> payload) {
+            @RequestBody Map<String, Object> payload,
+            Authentication authentication) {
 
-        try {
-            Proposal proposal = proposalService.updateProposal(
-                    id,
-                    payload.get("title") == null ? null :
-                            payload.get("title").toString(),
-                    payload.get("summary") == null ? null :
-                            payload.get("summary").toString(),
-                    payload.get("status") == null ? null :
-                            payload.get("status").toString(),
-                    payload.get("budget") == null ? -1 :
-                            Integer.parseInt(payload.get("budget").toString()),
-                    payload.get("technologies") instanceof List<?> technologies
-                            ? technologies.stream().map(String::valueOf).toList()
-                            : null
-            );
+        Proposal proposal = proposalService.updateOwnProposal(
+                id,
 
-            return ResponseEntity.ok(proposal);
+                payload.get("title") == null ? null :
+                        payload.get("title").toString(),
 
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", ex.getMessage()));
-        }
+                payload.get("summary") == null ? null :
+                        payload.get("summary").toString(),
+
+                payload.get("budget") == null ? -1 :
+                        Integer.parseInt(payload.get("budget").toString()),
+
+                payload.get("technologies") instanceof List<?> technologies
+                        ? new ArrayList<>(
+                                technologies.stream()
+                                        .map(String::valueOf)
+                                        .toList())
+                        : null,
+
+                authentication.getName()
+        );
+
+        return ResponseEntity.ok(proposal);
+    }
+
+    @PreAuthorize("hasRole('EVALUATOR')")
+    @PutMapping("/proposals/{id}/status")
+    public ResponseEntity<?> updateProposalStatus(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> payload) {
+
+        Proposal proposal = proposalService.updateProposalStatus(
+                id,
+                payload.get("status")
+        );
+
+        return ResponseEntity.ok(proposal);
     }
 }
