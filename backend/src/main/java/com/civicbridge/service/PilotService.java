@@ -4,8 +4,10 @@ package com.civicbridge.service;
 import com.civicbridge.model.Pilot;
 import com.civicbridge.model.PilotMilestone;
 import com.civicbridge.repository.PilotRepository;
+import com.civicbridge.repository.UserAccountRepository;
 
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -16,23 +18,45 @@ import java.util.Map;
 public class PilotService {
 
     private final PilotRepository pilotRepository;
+    private final UserAccountRepository userRepository;
 
-    public PilotService(PilotRepository pilotRepository) {
+    public PilotService(
+            PilotRepository pilotRepository,
+            UserAccountRepository userRepository) {
         this.pilotRepository = pilotRepository;
+        this.userRepository = userRepository;
     }
 
-    public List<Map<String, Object>> getPilots() {
+    // Startups see only their own pilots.
+    // Government and Evaluators can see all pilots.
+    public List<Map<String, Object>> getPilots(
+            String email, boolean canViewAll) {
+
+        List<Pilot> pilotRecords;
+
+        if (canViewAll) {
+            pilotRecords = pilotRepository.findAll();
+        } else {
+            Long startupId = userRepository.findByEmailIgnoreCase(email)
+                    .orElseThrow(() ->
+                            new IllegalArgumentException("User not found"))
+                    .getId();
+
+            pilotRecords = pilotRepository.findByStartupId(startupId);
+        }
 
         List<Map<String, Object>> pilots = new ArrayList<>();
 
-        for (Pilot pilot : pilotRepository.findAll()) {
+        for (Pilot pilot : pilotRecords) {
             pilots.add(convertToMap(pilot));
         }
 
         return pilots;
     }
 
-    public Map<String, Object> updatePilot(Long id, Map<String, Object> payload) {
+    // Government and Evaluators can update pilot details.
+    public Map<String, Object> updatePilot(
+            Long id, Map<String, Object> payload) {
 
         Pilot pilot = pilotRepository.findById(id)
                 .orElseGet(() -> {
@@ -73,25 +97,60 @@ public class PilotService {
         return convertToMap(savedPilot);
     }
 
+    // Save startup milestone updates, notes, status and progress.
+    // Startups can update only their own pilots.
+    // Evaluators can update all pilots.
     public Map<String, Object> updateMilestones(
             Long id,
-            List<Map<String, Object>> milestones) {
+            Object milestones,
+            String notes,
+            String status,
+            Integer progress,
+            String email,
+            boolean canUpdateAll) {
 
         Pilot pilot = pilotRepository.findById(id)
                 .orElseThrow(() ->
                         new IllegalArgumentException("Pilot not found"));
 
+        // Check pilot ownership for Startup accounts.
+        if (!canUpdateAll) {
+
+            Long startupId = userRepository.findByEmailIgnoreCase(email)
+                    .orElseThrow(() ->
+                            new IllegalArgumentException("User not found"))
+                    .getId();
+
+            if (!startupId.equals(pilot.getStartupId())) {
+                throw new AccessDeniedException(
+                        "You are not allowed to update this pilot");
+            }
+        }
+
         updateMilestoneList(pilot, milestones);
+
+        pilot.setNotes(notes);
+
+        if (status != null) {
+            pilot.setStatus(status);
+        }
+
+        if (progress != null) {
+            pilot.setProgress(progress);
+        }
 
         Pilot savedPilot = pilotRepository.save(pilot);
 
         return convertToMap(savedPilot);
     }
 
-    private void updateMilestoneList(Pilot pilot, Object milestoneData) {
+    // Update milestone records.
+    private void updateMilestoneList(
+            Pilot pilot, Object milestoneData) {
 
         if (!(milestoneData instanceof List<?>)) {
-            throw new IllegalArgumentException("Milestones must be a list");
+            throw new IllegalArgumentException(
+                    "Milestones must be a list");
         }
 
         List<?> items = (List<?>) milestoneData;
@@ -101,7 +160,8 @@ public class PilotService {
         for (Object item : items) {
 
             if (!(item instanceof Map<?, ?>)) {
-                throw new IllegalArgumentException("Invalid milestone data");
+                throw new IllegalArgumentException(
+                        "Invalid milestone data");
             }
 
             Map<?, ?> milestoneMap = (Map<?, ?>) item;
@@ -120,6 +180,7 @@ public class PilotService {
         }
     }
 
+    // Convert pilot entity into API response.
     private Map<String, Object> convertToMap(Pilot pilot) {
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -150,6 +211,7 @@ public class PilotService {
 
     private Long toLong(Object value) {
         if (value == null) return null;
+
         return value instanceof Number
                 ? ((Number) value).longValue()
                 : Long.parseLong(value.toString());
@@ -157,6 +219,7 @@ public class PilotService {
 
     private Integer toInteger(Object value) {
         if (value == null) return null;
+
         return value instanceof Number
                 ? ((Number) value).intValue()
                 : Integer.parseInt(value.toString());

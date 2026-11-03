@@ -1,4 +1,3 @@
-
 package com.civicbridge.model;
 
 import jakarta.persistence.*;
@@ -19,6 +18,12 @@ public class Evaluation {
     private String recommendation;
 
     private String status;
+
+    @Column(columnDefinition = "TEXT")
+    private String scoresJson;
+
+    @Column(columnDefinition = "TEXT")
+    private String comments;
 
     public Evaluation() {
     }
@@ -68,5 +73,21 @@ public class Evaluation {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getScoresJson() {
+        return scoresJson;
+    }
+
+    public void setScoresJson(String scoresJson) {
+        this.scoresJson = scoresJson;
+    }
+
+    public String getComments() {
+        return comments;
+    }
+
+    public void setComments(String comments) {
+        this.comments = comments;
     }
 }

@@ -2039,7 +2039,7 @@ function StartupProposalPreparationModal({ challenge, onClose, onSubmit, onViewP
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  function submit(event) {
+  async function submit(event) { 
     event.preventDefault();
     const technologies=form.technologies.split(/[;,\n]/).map(value=>value.trim()).filter(Boolean);
     const budget=Number(form.budget);
@@ -2052,10 +2052,23 @@ function StartupProposalPreparationModal({ challenge, onClose, onSubmit, onViewP
     };
     setErrors(nextErrors);
     if(Object.values(nextErrors).some(Boolean)) return;
-    const now=new Date();
-    const submissionDate=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-    onSubmit({id:Date.now(),title:form.title.trim(),startupId:2,challengeId:challenge.id,submissionDate,status:'Proposal Submitted',description:form.solution.trim(),solution:form.solution.trim(),technologies,estimatedBudget:budget,expectedOutcomes:form.expectedOutcomes.trim()});
-    setSubmitted(true);
+    
+    try {
+      await onSubmit({
+        challengeId: challenge.id,
+        title: form.title.trim(),
+        summary: form.solution.trim(),
+        budget,
+        technologies,
+      });
+      setSubmitted(true);
+    } catch (error) {
+      setErrors(previous => ({
+        ...previous,
+        submit: error.message || 'Unable to submit proposal. Please try again.',
+      }));
+    }
+
   }
 
   return (
@@ -2492,36 +2505,99 @@ function StartupSettingsPage({ profile, defaults, preferences, onBack, onSave, o
 // ── Startup Dashboard ─────────────────────────────────────────────────────────
 function StartupDashboard({ setPage }) {
   const [activeNav, setActiveNav] = useState('overview');
-  const [savedChallengeIds,setSavedChallengeIds] = useState([]);
-  const [startupProposals,setStartupProposals] = useState(() => INITIAL_GOV_PROPOSALS.filter(proposal => proposal.startupId === 2));
-  const [startupPilotRecords,setStartupPilotRecords] = useState(() => INITIAL_GOV_PILOTS.filter(pilot => pilot.startupId === 2).map(pilot => ({ ...pilot, milestones:pilot.milestones.map(milestone => ({ ...milestone })) })));
+  const [savedChallengeIds, setSavedChallengeIds] = useState([]);
+
+  const [startupProposals, setStartupProposals] = useState([]);
+  const [startupPilotRecords, setStartupPilotRecords] = useState([]);
+  const [startupMatches, setStartupMatches] = useState([]);
+
   const userSession = getSession();
-  const registeredStartup = PUBLIC_STARTUPS.find(item => item.id === 2) || PUBLIC_STARTUPS[0];
-  const defaultStartupName = resolveStartupName(userSession?.startupName, registeredStartup.name);
-  const [startupProfile,setStartupProfile] = useState(() => ({
-    companyName:defaultStartupName,
-    initials:defaultStartupName.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase() || registeredStartup.initials,
-    founderName:'',
-    email:'',
-    domain:registeredStartup.tags.join(', '),
-    location:registeredStartup.location,
-    website:'',
-    description:registeredStartup.desc,
-    founded:registeredStartup.founded,
-    color:registeredStartup.color,
-  }));
-  const startupProfileDefaults = {
-    companyName:defaultStartupName,
-    initials:defaultStartupName.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase() || registeredStartup.initials,
-    founderName:'',
-    email:'',
-    domain:registeredStartup.tags.join(', '),
-    location:registeredStartup.location,
-    website:'',
-    description:registeredStartup.desc,
-    founded:registeredStartup.founded,
-    color:registeredStartup.color,
+  const defaultStartupName = resolveStartupName(
+    userSession?.startupName,
+    'Your Startup'
+  );
+
+  const registeredStartup = {
+    id: null,
+    name: defaultStartupName,
+    initials: defaultStartupName.split(/\s+/).filter(Boolean)
+      .slice(0, 2).map(word => word[0]).join('').toUpperCase() || 'ST',
+    tags: [],
+    location: '',
+    desc: '',
+    founded: '',
+    color: '#173C70',
   };
+
+  const [startupProfile, setStartupProfile] = useState(() => ({
+    companyName: defaultStartupName,
+    initials: registeredStartup.initials,
+    founderName: '',
+    email: '',
+    domain: '',
+    location: '',
+    website: '',
+    description: '',
+    founded: '',
+    color: '#173C70',
+  }));
+
+  const startupProfileDefaults = {
+    companyName: defaultStartupName,
+    initials: registeredStartup.initials,
+    founderName: '',
+    email: '',
+    domain: '',
+    location: '',
+    website: '',
+    description: '',
+    founded: '',
+    color: '#173C70',
+  };
+  
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadStartupData() {
+      try {
+        const [proposals, matches, pilots] = await Promise.all([
+          CivicBridgeApi.proposals.list(),
+          CivicBridgeApi.matches.list(),
+          CivicBridgeApi.pilots.list(),
+        ]);
+
+        if (ignore) return;
+
+        setStartupProposals(
+          Array.isArray(proposals)
+            ? proposals.map(normalizeProposalRecord)
+            : []
+        );
+
+        setStartupMatches(
+          Array.isArray(matches)
+            ? matches.map(normalizeMatchRecord)
+            : []
+        );
+
+        setStartupPilotRecords(
+          Array.isArray(pilots)
+            ? pilots.map(normalizePilotRecord)
+            : []
+        );
+      } catch (error) {
+        console.error('Unable to load startup dashboard data:', error);
+      }
+    }
+
+    loadStartupData();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+
   const [startupPreferences,setStartupPreferences] = useState({notifications:{challengeMatches:true,proposalUpdates:true,pilotMilestones:true},density:'comfortable'});
   const navItems = [
     { id:'overview',    label:'Overview',          icon:'LayoutDashboard' },
@@ -2532,8 +2608,7 @@ function StartupDashboard({ setPage }) {
     { id:'settings',    label:'Settings',          icon:'Settings' },
   ];
   const startup = {...registeredStartup,name:startupProfile.companyName,initials:startupProfile.initials,desc:startupProfile.description,location:startupProfile.location,tags:startupProfile.domain.split(',').map(tag=>tag.trim()).filter(Boolean)};
-  const startupMatches = INITIAL_GOV_MATCHES.filter(match => match.id === startup.id);
-  const startupPilots = startupPilotRecords.filter(pilot => pilot.startupId === startup.id);
+  const startupPilots = startupPilotRecords;
   const activePilots = startupPilots.filter(pilot => ['In Progress','Delayed'].includes(pilot.status));
   const startupTags = new Set(startup.tags.map(tag => tag.toLowerCase()));
   const recommendedChallenges = PUBLIC_CHALLENGES.map(challenge => {
@@ -2593,18 +2668,135 @@ function StartupDashboard({ setPage }) {
             <div style={{ fontSize:11, color:'#667085' }}>Startup</div>
           </div>
         </header>
+        
         {activeNav === 'overview'
-          ? <StartupDashboardOverview startup={startup} stats={stats} recommendedChallenges={recommendedChallenges} recentActivity={recentActivity} onNavigate={setActiveNav} />
+          ? <StartupDashboardOverview
+              startup={startup}
+              stats={stats}
+              recommendedChallenges={recommendedChallenges}
+              recentActivity={recentActivity}
+              onNavigate={setActiveNav}
+            />
           : activeNav === 'challenges'
-              ? <StartupChallengesPage startup={startup} challenges={PUBLIC_CHALLENGES} matches={startupMatches} savedChallengeIds={savedChallengeIds} onToggleSave={id=>setSavedChallengeIds(previous=>previous.includes(id)?previous.filter(savedId=>savedId!==id):[...previous,id])} onSubmitProposal={proposal=>setStartupProposals(previous=>[proposal,...previous])} onViewProposals={()=>setActiveNav('proposals')} onBack={() => setActiveNav('overview')} />
+            ? <StartupChallengesPage
+                startup={startup}
+                challenges={PUBLIC_CHALLENGES}
+                matches={startupMatches}
+                savedChallengeIds={savedChallengeIds}
+                onToggleSave={id => setSavedChallengeIds(previous =>
+                  previous.includes(id)
+                    ? previous.filter(savedId => savedId !== id)
+                    : [...previous, id]
+                )}
+                onSubmitProposal={async proposal => {
+                  const savedProposal = await CivicBridgeApi.proposals.create(proposal);
+
+                  setStartupProposals(previous => [
+                    normalizeProposalRecord(savedProposal),
+                    ...previous,
+                  ]);
+                }}
+                onViewProposals={() => setActiveNav('proposals')}
+                onBack={() => setActiveNav('overview')}
+              />
             : activeNav === 'proposals'
-              ? <StartupProposalsPage startup={startup} proposals={startupProposals} challenges={PUBLIC_CHALLENGES} onBack={() => setActiveNav('overview')} onUpdateProposal={updated=>setStartupProposals(previous=>previous.map(proposal=>proposal.id===updated.id?updated:proposal))} />
+              ? <StartupProposalsPage
+                  startup={startup}
+                  proposals={startupProposals}
+                  challenges={PUBLIC_CHALLENGES}
+                  onBack={() => setActiveNav('overview')}
+                  onUpdateProposal={updated => setStartupProposals(previous =>
+                    previous.map(proposal =>
+                      proposal.id === updated.id ? updated : proposal
+                    )
+                  )}
+                />
               : activeNav === 'pilot'
-                ? <StartupPilotPage startup={startup} pilots={startupPilots} challenges={PUBLIC_CHALLENGES} onBack={() => setActiveNav('overview')} onUpdatePilot={updated=>setStartupPilotRecords(previous=>previous.map(pilot=>pilot.id===updated.id?updated:pilot))} />
+                ? <StartupPilotPage
+                    startup={startup}
+                    pilots={startupPilots}
+                    challenges={PUBLIC_CHALLENGES}
+                    onBack={() => setActiveNav('overview')}
+                    onUpdatePilot={async updated => {
+                    const savedPilot = await CivicBridgeApi.pilots.updateMilestones(
+                      updated.id,
+                      {
+                        milestones: updated.milestones.map(milestone => ({
+                          title: milestone.title,
+                          status: milestone.status
+                        })),
+                        notes: updated.notes,
+                        status: updated.status,
+                        progress: updated.progress
+                      }
+                    );
+
+                    const normalizedPilot = normalizePilotRecord(savedPilot);
+
+                    setStartupPilotRecords(previous =>
+                      previous.map(pilot =>
+                        pilot.id === normalizedPilot.id ? normalizedPilot : pilot
+                      )
+                    );
+                  }}
+                />
                 : activeNav === 'profile'
-                  ? <StartupCompanyProfilePage profile={startupProfile} proposalCount={startupProposals.length} pilotCount={startupPilots.length} onBack={()=>setActiveNav('overview')} onSave={updated=>setStartupProfile({...updated,initials:updated.companyName===registeredStartup.name?registeredStartup.initials:updated.companyName.split(/\s+/).filter(Boolean).slice(0,2).map(word=>word[0]).join('').toUpperCase()||'ST'})} />
-                  : <StartupSettingsPage profile={startupProfile} defaults={startupProfileDefaults} preferences={startupPreferences} onBack={()=>setActiveNav('overview')} onSave={(updatedProfile,updatedPreferences)=>{setStartupProfile({...updatedProfile,initials:updatedProfile.companyName===registeredStartup.name?registeredStartup.initials:updatedProfile.companyName.split(/\s+/).filter(Boolean).slice(0,2).map(word=>word[0]).join('').toUpperCase()||'ST'});setStartupPreferences(updatedPreferences);}} onReset={()=>{setStartupProfile({...startupProfileDefaults});setStartupPreferences({notifications:{challengeMatches:true,proposalUpdates:true,pilotMilestones:true},density:'comfortable'});}} onDensityChange={density=>setStartupPreferences(previous=>({...previous,density}))} />
+                  ? <StartupCompanyProfilePage
+                      profile={startupProfile}
+                      proposalCount={startupProposals.length}
+                      pilotCount={startupPilots.length}
+                      onBack={() => setActiveNav('overview')}
+                      onSave={updated => setStartupProfile({
+                        ...updated,
+                        initials: updated.companyName === registeredStartup.name
+                          ? registeredStartup.initials
+                          : updated.companyName.split(/\s+/)
+                              .filter(Boolean)
+                              .slice(0, 2)
+                              .map(word => word[0])
+                              .join('')
+                              .toUpperCase() || 'ST'
+                      })}
+                    />
+                  : <StartupSettingsPage
+                      profile={startupProfile}
+                      defaults={startupProfileDefaults}
+                      preferences={startupPreferences}
+                      onBack={() => setActiveNav('overview')}
+                      onSave={(updatedProfile, updatedPreferences) => {
+                        setStartupProfile({
+                          ...updatedProfile,
+                          initials: updatedProfile.companyName === registeredStartup.name
+                            ? registeredStartup.initials
+                            : updatedProfile.companyName.split(/\s+/)
+                                .filter(Boolean)
+                                .slice(0, 2)
+                                .map(word => word[0])
+                                .join('')
+                                .toUpperCase() || 'ST'
+                        });
+                        setStartupPreferences(updatedPreferences);
+                      }}
+                      onReset={() => {
+                        setStartupProfile({...startupProfileDefaults});
+                        setStartupPreferences({
+                          notifications: {
+                            challengeMatches: true,
+                            proposalUpdates: true,
+                            pilotMilestones: true
+                          },
+                          density: 'comfortable'
+                        });
+                      }}
+                      onDensityChange={density =>
+                        setStartupPreferences(previous => ({
+                          ...previous,
+                          density
+                        }))
+                      }
+                    />
         }
+
       </div>
     </div>
   );
@@ -2640,18 +2832,62 @@ function EvaluatorSettingsPage({ settings, defaults, onSave, onReset, onDensityC
     setNotifications(previous=>({...previous,[key]:!previous[key]}));
     setNotice('');
   };
-  function save(event) {
+  async function save(event) {
     event.preventDefault();
-    const nextErrors={
-      name:form.name.trim()?'':'Enter your name.',
-      email:!form.email.trim()?'Enter your email address.':!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())?'Enter a valid email address.':'',
-      expertise:form.expertise?'':'Select your primary expertise.',
-    };
+
+    const nextErrors = {};
+
+    if (notes.trim() && notes.trim().length < 10) {
+      nextErrors.notes =
+        'Enter at least 10 characters or leave the notes blank.';
+      }
+
+    if (!milestones.length) {
+      nextErrors.milestones =
+      'This pilot has no milestones to update.';
+    }
+
     setErrors(nextErrors);
-    if(Object.values(nextErrors).some(Boolean))return;
-    const saved={...settings,profile:{...form,name:form.name.trim(),email:form.email.trim(),experience:form.experience.trim()},preferredCategories:[...preferredCategories],notifications:{...notifications},density};
-    onSave(saved);
-    setNotice('Evaluator settings saved successfully.');
+
+    if (Object.keys(nextErrors).length) return;
+
+    const allComplete = milestones.every(
+      milestone => milestone.status === 'Completed'
+    );
+
+    const nextStatus = allComplete
+      ? 'Completed'
+      : milestones.some(milestone => milestone.status === 'Delayed')
+        ? 'Delayed'
+        : milestones.some(milestone => milestone.status === 'In Progress')
+          ? 'In Progress'
+          : 'Planned';
+
+    const nextProgress = allComplete
+      ? 100
+      : Math.round(
+          milestones.filter(
+            milestone => milestone.status === 'Completed'
+          ).length / milestones.length * 100
+        );
+
+    try {
+      await onUpdate({
+        ...pilot,
+        milestones,
+        notes: notes.trim(),
+        status: nextStatus,
+        progress: nextProgress
+    });
+
+    setSaved(true);
+    } catch (error) {
+      setSaved(false);
+      setErrors(previous => ({
+        ...previous,
+        submit: error.message || 'Unable to save pilot progress. Please try again.'
+      }));
+    }
   }
   function confirmReset() {
     const reset={...defaults,profile:{...defaults.profile},preferredCategories:[...defaults.preferredCategories],notifications:{...defaults.notifications}};
@@ -3796,7 +4032,7 @@ function ProposalDetailsModal({ proposal, startup, challenge, onClose, onReview,
           <section className="pr-detail-section"><h3>Expected outcomes</h3><p>{proposal.expectedOutcomes}</p></section>
           {proposal.reviewNote && <section className="pr-review-note"><h3>Latest review note</h3><p>{proposal.reviewNote}</p></section>}
           <section className="pr-startup-block">
-            <div className="pr-startup-heading"><div className="startup-avatar" style={{ background:startup?.color || '#173C70' }}>{startup?.initials || 'ST'}</div><div><h3>{startup?.name || proposal.startupName}</h3><span>{startup?.domain || 'Startup applicant'}</span></div></div>
+            <div className="pr-startup-heading"><div className="startup-avatar" style={{ background:proposal.startupName ? '#173C70': (startup?.color || '#173C70') }}>{startup?.initials || 'ST'}</div><div><h3>{proposal.startupName || startup?.name || 'Startup unavailable'}</h3><span>{startup?.domain || 'Startup applicant'}</span></div></div>
             <p>{startup?.description || 'Startup profile information is unavailable.'}</p>
             {startup?.experience && <p><strong>Relevant experience:</strong> {startup.experience}</p>}
             {startup?.capabilities?.length > 0 && <div className="pr-tech-list">{startup.capabilities.map(capability => <span key={capability}>{capability}</span>)}</div>}
@@ -3871,7 +4107,7 @@ function ProposalsPage({ proposals, setProposals, challenges, onOpenChallenge, l
     const startup = startupById(proposal.startupId);
     const challenge = challengeById(proposal.challengeId);
     const term = search.trim().toLowerCase();
-    const matchesSearch = !term || `${proposal.title} ${startup?.name || proposal.startupName || ''}`.toLowerCase().includes(term);
+    const matchesSearch = !term || `${proposal.title} ${proposal.startupName ||startup?.name || 'Startup applicant'}`.toLowerCase().includes(term);
     return matchesSearch
       && (statusFilter === 'All' || proposal.status === statusFilter)
       && (challengeFilter === 'All' || String(proposal.challengeId) === challengeFilter);
@@ -3943,11 +4179,11 @@ function ProposalsPage({ proposals, setProposals, challenges, onOpenChallenge, l
           <table className="pr-table">
             <thead><tr>{['Proposal','Startup','Related challenge','Submitted','Status','Actions'].map(label => <th key={label}>{label}</th>)}</tr></thead>
             <tbody>{filtered.map(proposal => {
-              const startup = startupById(proposal.startupId);
+              const startup = proposal.startupName ? null : startupById(proposal.startupId);
               const challenge = challengeById(proposal.challengeId);
               return <tr key={proposal.id}>
                 <td className="pr-title-cell" data-label="Proposal">{proposal.title}</td>
-                <td data-label="Startup"><span className="pr-startup-name"><span className="startup-avatar" style={{ background:startup?.color || '#173C70' }}>{startup?.initials || 'ST'}</span>{startup?.name || proposal.startupName}</span></td>
+                <td data-label="Startup"><span className="pr-startup-name"><span className="startup-avatar" style={{ background:startup?.color || '#173C70' }}>{proposal.startupName ? proposal.startupName.split(/\s+/).map(word => word[0]).slice(0, 2).join('').toUpperCase() : startup?.initials || 'ST'}</span>{proposal.startupName || startup?.name || 'Startup applicant'}</span></td>
                 <td data-label="Related challenge">{challenge?.title || 'Challenge unavailable'}</td>
                 <td data-label="Submitted">{formatProposalDate(proposal.submissionDate)}</td>
                 <td data-label="Status"><span className={`badge ${proposalStatusBadge(proposal.status)}`}>{proposal.status}</span></td>
@@ -4109,12 +4345,32 @@ function EvaluationPage({ proposals, evaluations, setEvaluations, startups, chal
     { label:'Flagged', value:allRows.filter(row => row.evaluation.status === 'Flagged').length, icon:'Flag', bg:'#FEE4E2', color:'#b42318' },
   ];
 
-  function saveEvaluation(proposalId, update, final) {
-    setEvaluations(previous => previous.map(evaluation => evaluation.proposalId === proposalId ? { ...evaluation, ...update } : evaluation));
-    const proposal = proposalById(proposalId);
-    setNotice(final ? `Evaluation submitted for ${proposal?.title || 'proposal'}.` : `Evaluation draft saved for ${proposal?.title || 'proposal'}.`);
-    setDialog(null);
+  async function saveEvaluation(proposalId, update, final) {
+    try {
+        const savedEvaluation = await CivicBridgeApi.evaluations.save(
+            proposalId,
+            update
+        );
+        setEvaluations(previous =>
+            previous.map(evaluation =>
+                evaluation.proposalId === proposalId
+                    ? { ...evaluation, ...update, ...savedEvaluation }
+                    : evaluation
+            )
+        );
+        const proposal = proposalById(proposalId);
+        setNotice(
+            final
+                ? `Evaluation submitted for ${proposal?.title || 'proposal'}.`
+                : `Evaluation draft saved for ${proposal?.title || 'proposal'}.`
+        );
+        setDialog(null);
+        } catch (error) {
+        console.error('Evaluation save failed:', error);
+        setNotice('Unable to save evaluation. Please try again.');
+    }
   }
+    
 
   function resetFilters() {
     setSearch('');
